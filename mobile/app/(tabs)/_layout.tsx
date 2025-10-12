@@ -1,35 +1,36 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useState } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { BottomNav } from '@/components/BottomNav';
+import HomeScreen from './index';
+import ExploreScreen from './explore';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+export default function CustomTabLayout() {
+  const [activeScreen, setActiveScreen] = useState('home');
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  const renderScreen = () => {
+    switch (activeScreen) {
+      case 'home':
+        return <HomeScreen />;
+      case 'cart':
+        return <ExploreScreen />; // tạm dùng Explore làm Cart demo
+      case 'orders':
+        return <ExploreScreen />;
+      case 'profile':
+        return <ExploreScreen />;
+      default:
+        return <HomeScreen />;
+    }
+  };
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
-    </Tabs>
+    <View style={styles.container}>
+      <View style={styles.content}>{renderScreen()}</View>
+      <BottomNav activeScreen={activeScreen} onNavigate={setActiveScreen} cartCount={3} />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  content: { flex: 1, paddingBottom: 60 }, // chừa chỗ cho bottom nav
+});
