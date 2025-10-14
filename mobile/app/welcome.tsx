@@ -4,15 +4,11 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ImageBackground,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
+import { router } from "expo-router"; // ✅ dùng router thay vì navigation
 
-interface WelcomeScreenProps {
-  navigation?: any;
-}
-
-export default function WelcomeScreen({ navigation }: WelcomeScreenProps) {
+export default function WelcomeScreen() {
   return (
     <LinearGradient
       colors={["#fb923c", "#facc15"]}
@@ -41,14 +37,14 @@ export default function WelcomeScreen({ navigation }: WelcomeScreenProps) {
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={[styles.button, styles.loginBtn]}
-            onPress={() => navigation?.navigate("login")}
+            onPress={() => router.push("/login")} // ✅ chuyển sang dùng router
           >
             <Text style={[styles.buttonText, { color: "#f97316" }]}>Login</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={[styles.button, styles.registerBtn]}
-            onPress={() => navigation?.navigate("register")}
+            onPress={() => router.push("/register")} // ✅ tương tự
           >
             <Text style={[styles.buttonText, { color: "white" }]}>
               Register
@@ -63,7 +59,6 @@ export default function WelcomeScreen({ navigation }: WelcomeScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
     position: "relative",
     overflow: "hidden",
@@ -125,7 +120,6 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     width: "100%",
-    maxWidth: 300,
     gap: 16,
   },
   button: {
