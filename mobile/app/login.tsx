@@ -15,7 +15,6 @@ export default function LoginScreen() {
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
 
   const handleLogin = () => {
-    // TODO: Validate & call API
     router.replace("/(tabs)");
   };
 
