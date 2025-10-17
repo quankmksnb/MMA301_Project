@@ -1,36 +1,57 @@
-import React, { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
-import { BottomNav } from '@/components/BottomNav';
-import HomeScreen from './index';
-import ExploreScreen from './explore';
+import React from "react";
+import { View, StyleSheet } from "react-native";
+import { Slot, useRouter, usePathname } from "expo-router";
+import { BottomNav } from "@/components/BottomNav";
 
+// Đây là layout cho toàn bộ tab, giữ UI BottomNav gốc của bạn
 export default function CustomTabLayout() {
-  const [activeScreen, setActiveScreen] = useState('home');
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const renderScreen = () => {
-    switch (activeScreen) {
-      case 'home':
-        return <HomeScreen />;
-      case 'cart':
-        return <ExploreScreen />; // tạm dùng Explore làm Cart demo
-      case 'orders':
-        return <ExploreScreen />;
-      case 'profile':
-        return <ExploreScreen />;
-      default:
-        return <HomeScreen />;
+  // Xác định tab đang active dựa vào đường dẫn hiện tại
+  const activeScreen = (() => {
+    if (pathname.endsWith("/cart")) return "cart";
+    if (pathname.endsWith("/orders")) return "orders";
+    if (pathname.endsWith("/profile")) return "profile";
+    return "home";
+  })();
+
+  // Khi người dùng bấm icon trong BottomNav
+  const handleNavigate = (screen: string) => {
+    switch (screen) {
+      case "home":
+        router.push("/(tabs)"); // index.tsx
+        break;
+      case "cart":
+        router.push("/(tabs)/cart");
+        break;
+      case "orders":
+        router.push("/(tabs)/orders");
+        break;
+      case "profile":
+        router.push("/(tabs)/profile");
+        break;
     }
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.content}>{renderScreen()}</View>
-      <BottomNav activeScreen={activeScreen} onNavigate={setActiveScreen} cartCount={3} />
+      {/* Slot giúp Expo Router render đúng page */}
+      <View style={styles.content}>
+        <Slot />
+      </View>
+
+      {/* Giữ nguyên giao diện BottomNav bạn đã thiết kế */}
+      <BottomNav
+        activeScreen={activeScreen}
+        onNavigate={handleNavigate}
+        cartCount={1}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#fff' },
-  content: { flex: 1, paddingBottom: 60 }, // chừa chỗ cho bottom nav
+  container: { flex: 1, backgroundColor: "#fff" },
+  content: { flex: 1, paddingBottom: 60 },
 });

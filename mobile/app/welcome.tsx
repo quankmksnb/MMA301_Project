@@ -27,7 +27,7 @@ export default function WelcomeScreen() {
             <Text style={styles.logoEmoji}>🍔</Text>
           </View>
           <Text style={styles.title}>Foodify</Text>
-          <Text style={styles.subtitle}>Order your favorite food</Text>
+          {/* <Text style={styles.subtitle}>Order your favorite food</Text> */}
         </View>
 
         {/* Food illustration */}
