@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { categories, products, Product } from "../data/mockData";
+import { router } from "expo-router";
 
 export default function HomeScreen() {
   const [cartCount, setCartCount] = useState(0);
@@ -66,7 +67,11 @@ export default function HomeScreen() {
         {/* Featured Dishes */}
         <Text style={styles.sectionTitle}>Featured Dishes</Text>
         {products.map((product) => (
-          <View key={product.id} style={styles.productCard}>
+          <TouchableOpacity
+            key={product.id}
+            style={styles.productCard}
+            onPress={() => router.push(`/product-detail?id=${product.id}`)} // 👈 điều hướng
+          >
             <Image
               source={{ uri: product.image }}
               style={styles.productImage}
@@ -79,14 +84,17 @@ export default function HomeScreen() {
                   ${product.price.toFixed(2)}
                 </Text>
                 <TouchableOpacity
-                  onPress={() => handleAddToCart(product)}
+                  onPress={(e) => {
+                    e.stopPropagation(); // ✅ tránh bấm Add mà lại mở detail
+                    handleAddToCart(product);
+                  }}
                   style={styles.addBtn}
                 >
                   <Ionicons name="add-circle-outline" size={20} color="white" />
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
+          </TouchableOpacity>
         ))}
       </ScrollView>
     </View>

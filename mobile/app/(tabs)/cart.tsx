@@ -10,12 +10,12 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { CartItem, products } from "../data/mockData";
+import { router } from "expo-router";
 
 export default function CartScreen() {
   const [cartItems, setCartItems] = useState<CartItem[]>([
     { ...products[0], quantity: 1 },
     { ...products[2], quantity: 2 },
-    
   ]);
 
   const deliveryFee = 2.99;
@@ -32,6 +32,10 @@ export default function CartScreen() {
 
   const handleRemoveItem = (id: number) => {
     setCartItems((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  const handleCheckout = () => {
+    router.push("/(tabs)/checkout");
   };
 
   return (
@@ -93,7 +97,11 @@ export default function CartScreen() {
                           handleUpdateQuantity(item.id, item.quantity + 1)
                         }
                       >
-                        <Ionicons name="add-outline" size={18} color="#374151" />
+                        <Ionicons
+                          name="add-outline"
+                          size={18}
+                          color="#374151"
+                        />
                       </TouchableOpacity>
                     </View>
 
@@ -101,7 +109,11 @@ export default function CartScreen() {
                       onPress={() => handleRemoveItem(item.id)}
                       style={styles.removeBtn}
                     >
-                      <Ionicons name="trash-outline" size={20} color="#ef4444" />
+                      <Ionicons
+                        name="trash-outline"
+                        size={20}
+                        color="#ef4444"
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -127,7 +139,10 @@ export default function CartScreen() {
               <Text style={styles.totalText}>${total.toFixed(2)}</Text>
             </View>
 
-            <TouchableOpacity style={styles.checkoutBtn}>
+            <TouchableOpacity
+              style={styles.checkoutBtn}
+              onPress={handleCheckout}
+            >
               <Text style={styles.checkoutText}>Checkout</Text>
             </TouchableOpacity>
           </View>
