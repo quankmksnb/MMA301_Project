@@ -20,7 +20,10 @@ export const removeCartItem = async (productId: string) => {
   return res.data;
 };
 
-export const checkoutCart = async () => {
-  const res = await api.post("/orders/create");
+export const checkoutCart = async (addressId: string, paymentMethod = "COD") => {
+  const res = await api.post("/orders/checkout", {
+    addressId,
+    paymentMethod,
+  });
   return res.data;
 };

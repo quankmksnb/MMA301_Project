@@ -23,7 +23,6 @@ import {
 export default function CartScreen() {
   const [cartItems, setCartItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const deliveryFee = 15000; // phí giao hàng cố định
   const { setCartCount } = useCart();
 
   // 🟢 Load giỏ hàng từ backend
@@ -47,7 +46,7 @@ export default function CartScreen() {
     (sum, i) => sum + (i.product?.price || 0) * i.quantity,
     0
   );
-  const total = subtotal + deliveryFee;
+  const total = subtotal;
 
   // 🟠 Cập nhật số lượng
   const handleUpdateQuantity = async (productId: string, newQty: number) => {
@@ -78,11 +77,11 @@ export default function CartScreen() {
   // 🟣 Thanh toán
   const handleCheckout = async () => {
     try {
-      await checkoutCart();
-      Alert.alert("Thành công", "Đơn hàng đã được tạo thành công!");
-      setCartItems([]);
-      setCartCount(0);
-      router.push("/orders");
+      router.push("/(tabs)/checkout")
+      // Alert.alert("Thành công", "Đơn hàng đã được tạo thành công!");
+      // setCartItems([]);
+      // setCartCount(0);
+      // router.push("/orders");
     } catch (error) {
       Alert.alert("Lỗi", "Không thể thanh toán!");
     }
@@ -202,10 +201,7 @@ export default function CartScreen() {
               </Text>
             </View>
             <View style={styles.rowBetween}>
-              <Text style={styles.textGray}>Phí giao hàng</Text>
-              <Text style={styles.textGray}>
-                ₫{deliveryFee.toLocaleString("vi-VN")}
-              </Text>
+              
             </View>
             <View style={styles.rowBetweenTotal}>
               <Text style={styles.textDark}>Tổng cộng</Text>

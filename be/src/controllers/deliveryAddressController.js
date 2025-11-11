@@ -120,3 +120,19 @@ export const setDefaultAddress = async (req, res) => {
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+export const getDefaultAddress = async (req, res) => {
+  try {
+    const address = await DeliveryAddress.findOne({
+      user: req.user.id,
+      isDefault: true,
+    });
+
+    if (!address)
+      return res.status(404).json({ message: "No default address found" });
+
+    res.status(200).json(address);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};

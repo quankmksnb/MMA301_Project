@@ -5,6 +5,7 @@ import {
   updateAddress,
   deleteAddress,
   setDefaultAddress,
+  getDefaultAddress,
 } from "../controllers/deliveryAddressController.js";
 import { protect } from "../middleware/authMiddleware.js";
 
@@ -15,5 +16,6 @@ router.post("/", protect, addAddress);
 router.put("/:id", protect, updateAddress);
 router.delete("/:id", protect, deleteAddress);
 router.put("/:id/default", protect, setDefaultAddress);
+router.get("/default", protect, getDefaultAddress);
 
 export default router;

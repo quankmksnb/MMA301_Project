@@ -24,3 +24,8 @@ export const setDefaultAddress = async (id: string) => {
   const res = await api.put(`/address/${id}/default`);
   return res.data;
 };
+
+export const getDefaultAddress = async () => {
+  const res = await api.get("/address/default");
+  return res.data;
+};
