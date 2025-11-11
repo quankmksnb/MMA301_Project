@@ -110,7 +110,6 @@ export default function HomeScreen() {
         >
           {categories.map((cat) => (
             <TouchableOpacity key={cat._id} style={styles.categoryCard}>
-              <Text style={styles.categoryIcon}>{cat.icon || "🍱"}</Text>
               <Text style={styles.categoryName}>{cat.name}</Text>
             </TouchableOpacity>
           ))}

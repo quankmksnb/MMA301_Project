@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, ReactNode } from "react";
 
 interface CartContextType {
   cartCount: number;
-  setCartCount: (count: number) => void;
+  setCartCount: React.Dispatch<React.SetStateAction<number>>; // ✅ Sửa dòng này
   increaseCartCount: () => void;
   decreaseCartCount: () => void;
 }

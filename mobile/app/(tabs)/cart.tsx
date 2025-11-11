@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,57 +6,117 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { CartItem, products } from "../data/mockData";
 import { router } from "expo-router";
+import { useCart } from "../context/CartContext";
+import {
+  checkoutCart,
+  getCart,
+  removeCartItem,
+  updateCartItem,
+} from "../services/cartService";
 
 export default function CartScreen() {
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    { ...products[0], quantity: 1 },
-    { ...products[2], quantity: 2 },
-  ]);
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const deliveryFee = 15000; // phí giao hàng cố định
+  const { setCartCount } = useCart();
 
-  const deliveryFee = 2.99;
-  const subtotal = cartItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  // 🟢 Load giỏ hàng từ backend
+  useEffect(() => {
+    const loadCart = async () => {
+      try {
+        const data = await getCart();
+        setCartItems(data.items || []);
+        setCartCount(data.items?.length || 0);
+      } catch (error: any) {
+        console.log("🧨 Lỗi tải giỏ hàng:", error.message || error);
+        Alert.alert("Lỗi", "Không thể tải giỏ hàng! Hãy kiểm tra lại kết nối.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadCart();
+  }, []);
+
+  const subtotal = cartItems.reduce(
+    (sum, i) => sum + (i.product?.price || 0) * i.quantity,
+    0
+  );
   const total = subtotal + deliveryFee;
 
-  const handleUpdateQuantity = (id: number, quantity: number) => {
-    setCartItems((prev) =>
-      prev.map((item) =>
-        item.id === id ? { ...item, quantity: Math.max(1, quantity) } : item
-      )
+  // 🟠 Cập nhật số lượng
+  const handleUpdateQuantity = async (productId: string, newQty: number) => {
+    if (newQty < 1) return;
+    try {
+      await updateCartItem(productId, newQty);
+      setCartItems((prev) =>
+        prev.map((i) =>
+          i.product._id === productId ? { ...i, quantity: newQty } : i
+        )
+      );
+    } catch (error) {
+      Alert.alert("Lỗi", "Không thể cập nhật số lượng!");
+    }
+  };
+
+  // 🔴 Xóa sản phẩm khỏi giỏ
+  const handleRemoveItem = async (productId: string) => {
+    try {
+      await removeCartItem(productId);
+      setCartItems((prev) => prev.filter((i) => i.product._id !== productId));
+      setCartCount((prev) => Math.max(0, prev - 1));
+    } catch (error) {
+      Alert.alert("Lỗi", "Không thể xóa sản phẩm!");
+    }
+  };
+
+  // 🟣 Thanh toán
+  const handleCheckout = async () => {
+    try {
+      await checkoutCart();
+      Alert.alert("Thành công", "Đơn hàng đã được tạo thành công!");
+      setCartItems([]);
+      setCartCount(0);
+      router.push("/orders");
+    } catch (error) {
+      Alert.alert("Lỗi", "Không thể thanh toán!");
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#f97316" />
+      </View>
     );
-  };
-
-  const handleRemoveItem = (id: number) => {
-    setCartItems((prev) => prev.filter((i) => i.id !== id));
-  };
-
-  const handleCheckout = () => {
-    router.push("/(tabs)/checkout");
-  };
+  }
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Cart</Text>
+        <Text style={styles.headerTitle}>Giỏ hàng của bạn</Text>
       </View>
 
       {cartItems.length === 0 ? (
-        // 🛒 Trường hợp giỏ hàng trống
         <View style={styles.emptyContainer}>
           <View style={styles.emptyIconBox}>
             <Ionicons name="bag-outline" size={64} color="#9ca3af" />
           </View>
-          <Text style={styles.emptyTitle}>Your cart is empty</Text>
+          <Text style={styles.emptyTitle}>Giỏ hàng trống</Text>
           <Text style={styles.emptySubtitle}>
-            Add some delicious food to get started!
+            Hãy thêm vài món ăn ngon vào giỏ nào 🍔
           </Text>
-          <TouchableOpacity style={styles.browseButton}>
-            <Text style={styles.browseButtonText}>Browse Menu</Text>
+          <TouchableOpacity
+            style={styles.browseButton}
+            onPress={() => router.push("/(tabs)")}
+          >
+            <Text style={styles.browseButtonText}>Tiếp tục mua hàng</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -67,21 +127,26 @@ export default function CartScreen() {
             showsVerticalScrollIndicator={false}
           >
             {cartItems.map((item) => (
-              <View key={item.id} style={styles.cartCard}>
+              <View key={item.product._id} style={styles.cartCard}>
                 <Image
-                  source={{ uri: item.image }}
+                  source={{ uri: item.product.image }}
                   style={styles.cartImage}
                   resizeMode="cover"
                 />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.itemName}>{item.name}</Text>
-                  <Text style={styles.itemPrice}>${item.price.toFixed(2)}</Text>
+                  <Text style={styles.itemName}>{item.product.name}</Text>
+                  <Text style={styles.itemPrice}>
+                    ₫{item.product.price.toLocaleString("vi-VN")}
+                  </Text>
                   <View style={styles.itemBottom}>
                     <View style={styles.quantityBox}>
                       <TouchableOpacity
                         style={styles.qtyButton}
                         onPress={() =>
-                          handleUpdateQuantity(item.id, item.quantity - 1)
+                          handleUpdateQuantity(
+                            item.product._id,
+                            item.quantity - 1
+                          )
                         }
                       >
                         <Ionicons
@@ -90,11 +155,16 @@ export default function CartScreen() {
                           color="#374151"
                         />
                       </TouchableOpacity>
+
                       <Text style={styles.qtyText}>{item.quantity}</Text>
+
                       <TouchableOpacity
                         style={styles.qtyButton}
                         onPress={() =>
-                          handleUpdateQuantity(item.id, item.quantity + 1)
+                          handleUpdateQuantity(
+                            item.product._id,
+                            item.quantity + 1
+                          )
                         }
                       >
                         <Ionicons
@@ -106,7 +176,7 @@ export default function CartScreen() {
                     </View>
 
                     <TouchableOpacity
-                      onPress={() => handleRemoveItem(item.id)}
+                      onPress={() => handleRemoveItem(item.product._id)}
                       style={styles.removeBtn}
                     >
                       <Ionicons
@@ -120,30 +190,35 @@ export default function CartScreen() {
               </View>
             ))}
 
-            {/* 👇 Spacer để tránh bị summary che */}
             <View style={{ height: 160 }} />
           </ScrollView>
 
           {/* Tổng kết */}
           <View style={styles.summaryBox}>
             <View style={styles.rowBetween}>
-              <Text style={styles.textGray}>Subtotal</Text>
-              <Text style={styles.textGray}>${subtotal.toFixed(2)}</Text>
+              <Text style={styles.textGray}>Tạm tính</Text>
+              <Text style={styles.textGray}>
+                ₫{subtotal.toLocaleString("vi-VN")}
+              </Text>
             </View>
             <View style={styles.rowBetween}>
-              <Text style={styles.textGray}>Delivery Fee</Text>
-              <Text style={styles.textGray}>${deliveryFee.toFixed(2)}</Text>
+              <Text style={styles.textGray}>Phí giao hàng</Text>
+              <Text style={styles.textGray}>
+                ₫{deliveryFee.toLocaleString("vi-VN")}
+              </Text>
             </View>
             <View style={styles.rowBetweenTotal}>
-              <Text style={styles.textDark}>Total</Text>
-              <Text style={styles.totalText}>${total.toFixed(2)}</Text>
+              <Text style={styles.textDark}>Tổng cộng</Text>
+              <Text style={styles.totalText}>
+                ₫{total.toLocaleString("vi-VN")}
+              </Text>
             </View>
 
             <TouchableOpacity
               style={styles.checkoutBtn}
               onPress={handleCheckout}
             >
-              <Text style={styles.checkoutText}>Checkout</Text>
+              <Text style={styles.checkoutText}>Thanh toán</Text>
             </TouchableOpacity>
           </View>
         </>
@@ -154,6 +229,7 @@ export default function CartScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f9fafb" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
 
   header: {
     backgroundColor: "white",
@@ -165,7 +241,6 @@ const styles = StyleSheet.create({
   },
   headerTitle: { fontSize: 20, fontWeight: "600", color: "#111827" },
 
-  // Empty cart
   emptyContainer: {
     flex: 1,
     alignItems: "center",
@@ -193,7 +268,6 @@ const styles = StyleSheet.create({
   },
   browseButtonText: { color: "white", fontWeight: "600", fontSize: 16 },
 
-  // Cart list
   cartList: { padding: 16 },
   cartCard: {
     flexDirection: "row",
@@ -232,8 +306,6 @@ const styles = StyleSheet.create({
   },
   qtyText: { minWidth: 24, textAlign: "center", color: "#111827" },
   removeBtn: { padding: 6 },
-
-  // Summary
   summaryBox: {
     position: "absolute",
     bottom: 0,
