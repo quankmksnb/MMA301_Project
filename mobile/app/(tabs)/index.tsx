@@ -13,11 +13,13 @@ import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { addToCart, getCategories, getProducts } from "../services/productService";
+import { useCart } from "../context/CartContext";
 
 export default function HomeScreen() {
   const [userName, setUserName] = useState("User");
   const [categories, setCategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
+  const { increaseCartCount } = useCart();
   const [cartCount, setCartCount] = useState(0);
   const [search, setSearch] = useState("");
 
@@ -51,14 +53,15 @@ export default function HomeScreen() {
     loadData();
   }, []);
 
+  
+
   // 🟣 Thêm vào giỏ hàng
   const handleAddToCart = async (product: any) => {
     try {
       await addToCart(product._id || product.id, 1);
-      setCartCount((prev) => prev + 1);
+      increaseCartCount(); // 🟢 Cập nhật Context
       Alert.alert("Đã thêm vào giỏ", `${product.name} đã được thêm!`);
     } catch (error) {
-      console.log("Add to cart error:", error);
       Alert.alert("Lỗi", "Không thể thêm sản phẩm vào giỏ hàng!");
     }
   };

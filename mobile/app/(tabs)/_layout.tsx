@@ -2,13 +2,22 @@ import React from "react";
 import { View, StyleSheet } from "react-native";
 import { Slot, useRouter, usePathname } from "expo-router";
 import { BottomNav } from "@/components/BottomNav";
+import { CartProvider, useCart } from "../context/CartContext";
 
-// Đây là layout cho toàn bộ tab, giữ UI BottomNav gốc của bạn
 export default function CustomTabLayout() {
+  return (
+    <CartProvider>
+      <TabLayoutInner />
+    </CartProvider>
+  );
+}
+
+// ⬇️ phần bên dưới là layout chính thật
+function TabLayoutInner() {
   const router = useRouter();
   const pathname = usePathname();
+  const { cartCount } = useCart();
 
-  // Xác định tab đang active dựa vào đường dẫn hiện tại
   const activeScreen = (() => {
     if (pathname.endsWith("/cart")) return "cart";
     if (pathname.endsWith("/orders")) return "orders";
@@ -16,11 +25,10 @@ export default function CustomTabLayout() {
     return "home";
   })();
 
-  // Khi người dùng bấm icon trong BottomNav
   const handleNavigate = (screen: string) => {
     switch (screen) {
       case "home":
-        router.push("/(tabs)"); // index.tsx
+        router.push("/(tabs)");
         break;
       case "cart":
         router.push("/(tabs)/cart");
@@ -36,16 +44,13 @@ export default function CustomTabLayout() {
 
   return (
     <View style={styles.container}>
-      {/* Slot giúp Expo Router render đúng page */}
       <View style={styles.content}>
         <Slot />
       </View>
-
-      {/* Giữ nguyên giao diện BottomNav bạn đã thiết kế */}
       <BottomNav
         activeScreen={activeScreen}
         onNavigate={handleNavigate}
-        cartCount={1}
+        cartCount={cartCount} // 🟢 Lấy trực tiếp từ Context
       />
     </View>
   );

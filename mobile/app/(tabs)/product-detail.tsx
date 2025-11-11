@@ -13,12 +13,14 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, router } from "expo-router";
 import { addToCart, getProductById } from "../services/productService";
+import { useCart } from "../context/CartContext";
 
 export default function ProductDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [quantity, setQuantity] = useState(1);
+   const { increaseCartCount } = useCart();
 
   // 🟢 Lấy chi tiết sản phẩm từ backend
   useEffect(() => {
@@ -40,12 +42,12 @@ export default function ProductDetailScreen() {
     if (!product?._id) return;
     try {
       await addToCart(product._id, quantity);
+      increaseCartCount(); // 🟢 Tăng số lượng giỏ hàng toàn app
       Alert.alert("Thành công", `${product.name} đã được thêm vào giỏ hàng!`, [
         { text: "Xem giỏ hàng", onPress: () => router.push("/cart") },
         { text: "Ở lại trang", style: "cancel" },
       ]);
     } catch (error) {
-      console.log("Add to cart error:", error);
       Alert.alert("Lỗi", "Không thể thêm sản phẩm vào giỏ hàng!");
     }
   };
