@@ -21,8 +21,7 @@ export default function ProfileScreen() {
   const menuItems = [
     { icon: "person-outline", label: "Edit Profile", action: () => router.push("/(tabs)/edit-profile") },
     { icon: "bag-outline", label: "My Orders", action: () => router.push("/(tabs)/orders") },
-    { icon: "location-outline", label: "Delivery Address", action: () => {} },
-    { icon: "heart-outline", label: "Favorites", action: () => {} },
+    { icon: "location-outline", label: "Delivery Address", action: () => router.push("/(tabs)/delivery-address") },
     { icon: "settings-outline", label: "Settings", action: () => {} },
     
   ];
