@@ -1,75 +1,112 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
-import { mockOrders, Order } from "../data/mockData";
+import { getUserOrders } from "../services/orderService";
+import { router } from "expo-router";
 
 export default function OrdersScreen() {
   const [activeTab, setActiveTab] = useState<
-    "all" | "in-progress" | "delivered"
+    "all" | "pending" | "confirmed" | "delivering" | "completed" | "cancelled"
   >("all");
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filteredOrders = mockOrders.filter((order) => {
+  // 🟢 Load danh sách đơn hàng từ backend
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const data = await getUserOrders();
+        setOrders(data);
+      } catch (err: any) {
+        console.log("🧨 Lỗi tải orders:", err.message);
+        Alert.alert("Lỗi", "Không thể tải danh sách đơn hàng!");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, []);
+
+  // 🟡 Lọc theo tab
+  const filteredOrders = orders.filter((order) => {
     if (activeTab === "all") return true;
-    if (activeTab === "in-progress") return order.status === "In Progress";
-    if (activeTab === "delivered") return order.status === "Delivered";
-    return true;
+    return order.status === activeTab;
   });
 
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case "In Progress":
-        return { backgroundColor: "#fef9c3", color: "#854d0e" };
-      case "Delivered":
-        return { backgroundColor: "#dcfce7", color: "#166534" };
-      case "Cancelled":
-        return { backgroundColor: "#fee2e2", color: "#991b1b" };
+      case "pending":
+        return { bg: "#fef9c3", color: "#854d0e", label: "Đang chờ xác nhận" };
+      case "confirmed":
+        return { bg: "#dbeafe", color: "#1e40af", label: "Đã xác nhận" };
+      case "delivering":
+        return { bg: "#fff7ed", color: "#9a3412", label: "Đang giao hàng" };
+      case "completed":
+        return { bg: "#dcfce7", color: "#166534", label: "Hoàn thành" };
+      case "cancelled":
+        return { bg: "#fee2e2", color: "#991b1b", label: "Đã hủy" };
       default:
-        return { backgroundColor: "#f3f4f6", color: "#374151" };
+        return { bg: "#f3f4f6", color: "#374151", label: "Không xác định" };
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#f97316" />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Orders</Text>
+        <Text style={styles.headerTitle}>Đơn hàng của tôi</Text>
 
         {/* Tabs */}
-        <View style={styles.tabs}>
-          {["all", "in-progress", "delivered"].map((tab) => (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabs}
+        >
+          {[
+            { key: "all", label: "Tất cả" },
+            { key: "pending", label: "Chờ xác nhận" },
+            { key: "confirmed", label: "Đã xác nhận" },
+            { key: "delivering", label: "Đang giao" },
+            { key: "completed", label: "Hoàn thành" },
+            { key: "cancelled", label: "Đã hủy" },
+          ].map((tab) => (
             <TouchableOpacity
-              key={tab}
-              onPress={() =>
-                setActiveTab(tab as "all" | "in-progress" | "delivered")
-              }
+              key={tab.key}
+              onPress={() => setActiveTab(tab.key as any)}
               style={[
                 styles.tabButton,
-                activeTab === tab && styles.tabButtonActive,
+                activeTab === tab.key && styles.tabButtonActive,
               ]}
             >
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === tab && styles.tabTextActive,
+                  activeTab === tab.key && styles.tabTextActive,
                 ]}
               >
-                {tab === "all"
-                  ? "All"
-                  : tab === "in-progress"
-                  ? "In Progress"
-                  : "Delivered"}
+                {tab.label}
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
       </View>
 
-      {/* Orders List */}
+      {/* Danh sách đơn */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
@@ -77,56 +114,71 @@ export default function OrdersScreen() {
         {filteredOrders.length === 0 ? (
           <View style={styles.emptyContainer}>
             <Text style={styles.emptyIcon}>📦</Text>
-            <Text style={styles.emptyTitle}>No orders found</Text>
+            <Text style={styles.emptyTitle}>Không có đơn hàng</Text>
             <Text style={styles.emptyText}>
               {activeTab === "all"
-                ? "You haven't placed any orders yet"
-                : `No ${activeTab.replace("-", " ")} orders`}
+                ? "Bạn chưa đặt đơn hàng nào."
+                : `Không có đơn ở trạng thái "${getStatusStyle(activeTab).label}"`}
             </Text>
           </View>
         ) : (
-          filteredOrders.map((order) => (
-            <View key={order.id} style={styles.orderCard}>
-              <View style={styles.orderHeader}>
-                <View>
-                  <Text style={styles.orderId}>{order.id}</Text>
-                  <Text style={styles.orderDate}>{order.date}</Text>
-                </View>
-                <Text
-                  style={[
-                    styles.statusBadge,
-                    {
-                      backgroundColor: getStatusStyle(order.status)
-                        .backgroundColor,
-                      color: getStatusStyle(order.status).color,
-                    },
-                  ]}
-                >
-                  {order.status}
-                </Text>
-              </View>
-
-              <View style={styles.itemsList}>
-                {order.items.map((item, index) => (
-                  <View key={index} style={styles.itemRow}>
-                    <Text style={styles.itemText}>
-                      {item.quantity}x {item.name}
+          filteredOrders.map((order) => {
+            const status = getStatusStyle(order.status);
+            return (
+              <TouchableOpacity
+                key={order._id}
+                style={styles.orderCard}
+                onPress={() =>
+                  router.push(`/(tabs)/order-detail?id=${order._id}`)
+                }
+              >
+                <View style={styles.orderHeader}>
+                  <View>
+                    <Text style={styles.orderId}>
+                      Mã đơn: {order._id.slice(-6).toUpperCase()}
                     </Text>
-                    <Text style={styles.itemAmount}>
-                      ${(item.price * item.quantity).toFixed(2)}
+                    <Text style={styles.orderDate}>
+                      {new Date(order.createdAt).toLocaleString("vi-VN")}
                     </Text>
                   </View>
-                ))}
-              </View>
+                  <Text
+                    style={[
+                      styles.statusBadge,
+                      { backgroundColor: status.bg, color: status.color },
+                    ]}
+                  >
+                    {status.label}
+                  </Text>
+                </View>
 
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>Total Amount</Text>
-                <Text style={styles.totalValue}>
-                  ${order.total.toFixed(2)}
-                </Text>
-              </View>
-            </View>
-          ))
+                <View style={styles.itemsList}>
+                  {order.items.slice(0, 2).map((item: any, idx: number) => (
+                    <View key={idx} style={styles.itemRow}>
+                      <Text style={styles.itemText}>
+                        {item.quantity}x {item.productName}
+                      </Text>
+                      <Text style={styles.itemAmount}>
+                        ₫
+                        {(item.price * item.quantity).toLocaleString("vi-VN")}
+                      </Text>
+                    </View>
+                  ))}
+                  {order.items.length > 2 && (
+                    <Text style={styles.moreText}>
+                      +{order.items.length - 2} sản phẩm khác
+                    </Text>
+                  )}
+                </View>
+
+                <View style={styles.totalRow}>
+                  <Text style={styles.totalLabel}>Tổng tiền</Text>
+                  <Text style={styles.totalValue}>
+                    ₫{order.totalAmount.toLocaleString("vi-VN")}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -135,6 +187,7 @@ export default function OrdersScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f9fafb" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     backgroundColor: "white",
     paddingHorizontal: 20,
@@ -146,20 +199,16 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 20, fontWeight: "600", color: "#111827" },
   tabs: { flexDirection: "row", gap: 8, marginTop: 12 },
   tabButton: {
-    flex: 1,
     backgroundColor: "#f3f4f6",
     borderRadius: 8,
-    paddingVertical: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginRight: 8,
   },
   tabButtonActive: { backgroundColor: "#f97316" },
-  tabText: {
-    textAlign: "center",
-    color: "#6b7280",
-    fontWeight: "500",
-  },
+  tabText: { color: "#6b7280", fontWeight: "500" },
   tabTextActive: { color: "white" },
 
-  // Order card
   orderCard: {
     backgroundColor: "white",
     borderRadius: 16,
@@ -199,6 +248,7 @@ const styles = StyleSheet.create({
   },
   itemText: { color: "#4b5563", fontSize: 13 },
   itemAmount: { color: "#374151", fontSize: 13 },
+  moreText: { color: "#9ca3af", fontSize: 12, marginTop: 4 },
   totalRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -210,7 +260,6 @@ const styles = StyleSheet.create({
   totalLabel: { color: "#374151", fontWeight: "500" },
   totalValue: { color: "#f97316", fontWeight: "700" },
 
-  // Empty
   emptyContainer: { alignItems: "center", marginTop: 60 },
   emptyIcon: { fontSize: 60, marginBottom: 8 },
   emptyTitle: { color: "#111827", fontSize: 18, fontWeight: "600" },

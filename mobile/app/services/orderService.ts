@@ -14,3 +14,13 @@ export const getOrderDetail = async (orderId: string) => {
   const res = await api.get(`/orders/${orderId}`);
   return res.data;
 };
+
+export const cancelOrder = async (id: string) => {
+  const res = await api.put(`/orders/${id}/cancel`);
+  return res.data;
+};
+
+export const getOrderById = async (id: string) => {
+  const res = await api.get(`/orders/${id}`);
+  return res.data;
+};

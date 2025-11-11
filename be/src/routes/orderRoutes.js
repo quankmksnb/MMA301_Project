@@ -4,6 +4,7 @@ import {
   getUserOrders,
   getOrderById,
   updateOrderStatus,
+  cancelOrder,
 } from "../controllers/orderController.js";
 import { protect, sellerOnly } from "../middleware/authMiddleware.js";
 
@@ -13,5 +14,6 @@ router.post("/checkout", protect, checkout);
 router.get("/", protect, getUserOrders);
 router.get("/:id", protect, getOrderById);
 router.put("/:id/status", protect, sellerOnly, updateOrderStatus);
+router.put("/:id/cancel", protect, cancelOrder);
 
 export default router;
