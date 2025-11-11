@@ -15,6 +15,11 @@ export const verifyOtp = async (email: string, otp: string) => {
   return res.data;
 };
 
+export const resendOtp = async (email: string) => {
+  const res = await api.post("/auth/resend-otp", { email });
+  return res.data;
+};
+
 export const logoutUser = async () => {
   const res = await api.post("/auth/logout");
   return res.data;

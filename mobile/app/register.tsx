@@ -2,13 +2,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Alert,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
+import { registerUser } from "./services/authService";
 
 export default function RegisterScreen() {
   const [fullName, setFullName] = useState("");
@@ -16,10 +18,50 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleRegister = () => {
-    // TODO: Validate form & call API
-    router.replace("/(tabs)");
+  // 🟠 Xử lý đăng ký
+  const handleRegister = async () => {
+    if (!fullName || !email || !password || !confirm) {
+      Alert.alert("Thiếu thông tin", "Vui lòng nhập đầy đủ các trường!");
+      return;
+    }
+    if (password !== confirm) {
+      Alert.alert("Lỗi", "Mật khẩu nhập lại không khớp!");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const res = await registerUser({
+        name: fullName,
+        email,
+        password,
+      });
+
+      Alert.alert(
+        "Đăng ký thành công",
+        "Mã xác thực đã được gửi đến email của bạn!",
+        [
+          {
+            text: "Xác minh ngay",
+            onPress: () =>
+              router.push({
+                pathname: "/verify",
+                params: { email },
+              }),
+          },
+        ]
+      );
+    } catch (error: any) {
+      console.log("Register error:", error.response?.data || error.message);
+      const msg =
+        error.response?.data?.message ||
+        "Đăng ký thất bại. Vui lòng thử lại!";
+      Alert.alert("Lỗi đăng ký", msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -29,7 +71,7 @@ export default function RegisterScreen() {
         <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 8 }}>
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
-        <Text style={styles.headerText}>Create Account</Text>
+        <Text style={styles.headerText}>Tạo tài khoản</Text>
       </View>
 
       {/* Main */}
@@ -39,13 +81,13 @@ export default function RegisterScreen() {
           <View style={styles.logoCircle}>
             <Text style={styles.logoEmoji}>🍔</Text>
           </View>
-          <Text style={styles.welcomeText}>Join Foodify</Text>
-          <Text style={styles.subText}>Create your account to get started</Text>
+          <Text style={styles.welcomeText}>Tham gia Foodify</Text>
+          <Text style={styles.subText}>Tạo tài khoản để bắt đầu nhé</Text>
         </View>
 
         {/* Form */}
         <View style={{ gap: 16 }}>
-          {/* Full Name */}
+          {/* Họ và tên */}
           <View
             style={[
               styles.inputWrapper,
@@ -56,7 +98,7 @@ export default function RegisterScreen() {
               <Ionicons name="person" size={20} color="#9ca3af" />
             </View>
             <TextInput
-              placeholder="Full Name"
+              placeholder="Họ và tên"
               value={fullName}
               onChangeText={setFullName}
               style={styles.textInputBox}
@@ -88,7 +130,7 @@ export default function RegisterScreen() {
             />
           </View>
 
-          {/* Password */}
+          {/* Mật khẩu */}
           <View
             style={[
               styles.inputWrapper,
@@ -99,7 +141,7 @@ export default function RegisterScreen() {
               <Ionicons name="lock-closed" size={20} color="#9ca3af" />
             </View>
             <TextInput
-              placeholder="Password"
+              placeholder="Mật khẩu"
               secureTextEntry
               value={password}
               onChangeText={setPassword}
@@ -110,7 +152,7 @@ export default function RegisterScreen() {
             />
           </View>
 
-          {/* Confirm Password */}
+          {/* Nhập lại mật khẩu */}
           <View
             style={[
               styles.inputWrapper,
@@ -121,7 +163,7 @@ export default function RegisterScreen() {
               <Ionicons name="lock-closed" size={20} color="#9ca3af" />
             </View>
             <TextInput
-              placeholder="Confirm Password"
+              placeholder="Nhập lại mật khẩu"
               secureTextEntry
               value={confirm}
               onChangeText={setConfirm}
@@ -132,20 +174,26 @@ export default function RegisterScreen() {
             />
           </View>
 
-          {/* Submit */}
-          <TouchableOpacity onPress={handleRegister} style={styles.registerButton}>
-            <Text style={styles.registerText}>Create Account</Text>
+          {/* Nút đăng ký */}
+          <TouchableOpacity
+            onPress={handleRegister}
+            style={styles.registerButton}
+            disabled={loading}
+          >
+            <Text style={styles.registerText}>
+              {loading ? "Đang xử lý..." : "Tạo tài khoản"}
+            </Text>
           </TouchableOpacity>
 
           {/* Footer */}
           <View style={{ alignItems: "center", marginTop: 24 }}>
             <Text style={{ color: "#6b7280" }}>
-              Already have an account?{" "}
+              Đã có tài khoản?{" "}
               <Text
                 onPress={() => router.push("/login")}
                 style={{ color: "#f97316", fontWeight: "600" }}
               >
-                Sign In
+                Đăng nhập
               </Text>
             </Text>
           </View>

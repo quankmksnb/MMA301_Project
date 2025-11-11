@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,60 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { categories, products, Product } from "../data/mockData";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
+import { addToCart, getCategories, getProducts } from "../services/productService";
 
 export default function HomeScreen() {
+  const [userName, setUserName] = useState("User");
+  const [categories, setCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
   const [cartCount, setCartCount] = useState(0);
+  const [search, setSearch] = useState("");
 
-  const handleAddToCart = (product: Product) => {
-    setCartCount(cartCount + 1);
+  // 🟢 Lấy user info
+  useEffect(() => {
+    const loadUser = async () => {
+      const userStr = await AsyncStorage.getItem("user");
+      if (userStr) {
+        const user = JSON.parse(userStr);
+        setUserName(user.name || "Người dùng");
+      }
+    };
+    loadUser();
+  }, []);
+
+  // 🟠 Lấy dữ liệu category + product
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [catRes, prodRes] = await Promise.all([
+          getCategories(),
+          getProducts(),
+        ]);
+        setCategories(catRes.categories || catRes);
+        setProducts(prodRes.products || prodRes);
+      } catch (error) {
+        console.error("Lỗi load dữ liệu:", error);
+        Alert.alert("Lỗi", "Không thể tải dữ liệu. Vui lòng thử lại!");
+      }
+    };
+    loadData();
+  }, []);
+
+  // 🟣 Thêm vào giỏ hàng
+  const handleAddToCart = async (product: any) => {
+    try {
+      await addToCart(product._id || product.id, 1);
+      setCartCount((prev) => prev + 1);
+      Alert.alert("Đã thêm vào giỏ", `${product.name} đã được thêm!`);
+    } catch (error) {
+      console.log("Add to cart error:", error);
+      Alert.alert("Lỗi", "Không thể thêm sản phẩm vào giỏ hàng!");
+    }
   };
 
   return (
@@ -25,11 +69,14 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.greeting}>Hello,</Text>
-            <Text style={styles.userName}>User</Text>
+            <Text style={styles.greeting}>Xin chào,</Text>
+            <Text style={styles.userName}>{userName}</Text>
           </View>
 
-          <TouchableOpacity style={styles.cartBtn}>
+          <TouchableOpacity
+            style={styles.cartBtn}
+            onPress={() => router.push("/cart")}
+          >
             <Ionicons name="cart-outline" size={24} color="#f97316" />
             {cartCount > 0 && (
               <View style={styles.badge}>
@@ -43,59 +90,71 @@ export default function HomeScreen() {
         <View style={styles.searchBar}>
           <Ionicons name="search" size={20} color="#9ca3af" />
           <TextInput
-            placeholder="Search for food..."
+            placeholder="Tìm món ăn..."
+            value={search}
+            onChangeText={setSearch}
             style={styles.searchInput}
             placeholderTextColor="#9ca3af"
           />
         </View>
 
         {/* Categories */}
-        <Text style={styles.sectionTitle}>Categories</Text>
+        <Text style={styles.sectionTitle}>Danh mục</Text>
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.categoryList}
         >
           {categories.map((cat) => (
-            <TouchableOpacity key={cat.id} style={styles.categoryCard}>
-              <Text style={styles.categoryIcon}>{cat.icon}</Text>
+            <TouchableOpacity key={cat._id} style={styles.categoryCard}>
+              <Text style={styles.categoryIcon}>{cat.icon || "🍱"}</Text>
               <Text style={styles.categoryName}>{cat.name}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
 
         {/* Featured Dishes */}
-        <Text style={styles.sectionTitle}>Featured Dishes</Text>
-        {products.map((product) => (
-          <TouchableOpacity
-            key={product.id}
-            style={styles.productCard}
-            onPress={() => router.push(`/product-detail?id=${product.id}`)} // 👈 điều hướng
-          >
-            <Image
-              source={{ uri: product.image }}
-              style={styles.productImage}
-            />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.productName}>{product.name}</Text>
-              <Text style={styles.productDesc}>{product.description}</Text>
-              <View style={styles.productBottom}>
-                <Text style={styles.productPrice}>
-                  ${product.price.toFixed(2)}
-                </Text>
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation(); // ✅ tránh bấm Add mà lại mở detail
-                    handleAddToCart(product);
-                  }}
-                  style={styles.addBtn}
-                >
-                  <Ionicons name="add-circle-outline" size={20} color="white" />
-                </TouchableOpacity>
+        <Text style={styles.sectionTitle}>Món nổi bật</Text>
+        {products
+          .filter((p) =>
+            p.name.toLowerCase().includes(search.toLowerCase())
+          )
+          .map((product) => (
+            <TouchableOpacity
+              key={product._id}
+              style={styles.productCard}
+              onPress={() =>
+                router.push(`/product-detail?id=${product._id}`)
+              }
+            >
+              <Image
+                source={{ uri: product.image }}
+                style={styles.productImage}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.productName}>{product.name}</Text>
+                <Text style={styles.productDesc}>{product.description}</Text>
+                <View style={styles.productBottom}>
+                  <Text style={styles.productPrice}>
+                    ₫{product.price.toLocaleString("vi-VN")}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation();
+                      handleAddToCart(product);
+                    }}
+                    style={styles.addBtn}
+                  >
+                    <Ionicons
+                      name="add-circle-outline"
+                      size={20}
+                      color="white"
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          ))}
       </ScrollView>
     </View>
   );
@@ -177,11 +236,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e5e7eb",
   },
-  productImage: {
-    width: 100,
-    height: 100,
-    borderRadius: 12,
-  },
+  productImage: { width: 100, height: 100, borderRadius: 12 },
   productName: { fontWeight: "600", fontSize: 16, color: "#111827" },
   productDesc: { fontSize: 12, color: "#6b7280", marginVertical: 4 },
   productBottom: {
@@ -193,9 +248,8 @@ const styles = StyleSheet.create({
   addBtn: {
     backgroundColor: "#f97316",
     borderRadius: 8,
-    padding: 6, // nhỏ hơn một chút vì icon không cần nhiều padding
+    padding: 6,
     justifyContent: "center",
     alignItems: "center",
   },
-  addText: { color: "white", fontWeight: "600" },
 });
