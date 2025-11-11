@@ -129,3 +129,12 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+export const logoutUser = async (req, res) => {
+  try {
+    // Không cần lưu token hay xóa gì cả
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
