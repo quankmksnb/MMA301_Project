@@ -8,24 +8,66 @@ import {
   View,
   StyleSheet,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Alert } from "react-native";
+import { loginUser } from "./services/authService";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+  if (!email || !password) {
+    Alert.alert("Thiếu thông tin", "Vui lòng nhập đầy đủ email và mật khẩu!");
+    return;
+  }
+
+  try {
+    const res = await loginUser(email, password);
+    const { token, user } = res;
+
+    await AsyncStorage.setItem("accessToken", token);
+    await AsyncStorage.setItem("user", JSON.stringify(user));
+
+    Alert.alert("Đăng nhập thành công", `Chào mừng ${user.name || "bạn"}!`);
     router.replace("/(tabs)");
-  };
+  } catch (error: any) {
+    console.log("Lỗi đăng nhập:", error?.response?.data || error.message);
+
+    if (error?.response) {
+      const status = error.response.status;
+      const msg = error.response.data.message;
+
+      if (status === 404 || msg?.includes("not found")) {
+        Alert.alert("Đăng nhập thất bại", "Email không tồn tại trong hệ thống!");
+      } else if (status === 400 && msg?.includes("Invalid credentials")) {
+        Alert.alert("Đăng nhập thất bại", "Mật khẩu không chính xác. Vui lòng thử lại!");
+      } else if (status === 403 && msg?.includes("not verified")) {
+        Alert.alert("Tài khoản chưa kích hoạt", "Vui lòng kiểm tra email để xác thực tài khoản.");
+      } else {
+        Alert.alert("Đăng nhập thất bại", msg || "Đã xảy ra lỗi, vui lòng thử lại!");
+      }
+    } else {
+      Alert.alert("Lỗi mạng", "Không thể kết nối tới máy chủ. Vui lòng kiểm tra mạng!");
+    }
+  }
+};
+
+
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 8 }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ marginRight: 8 }}
+        >
           <Ionicons name="arrow-back" size={24} color="#374151" />
         </TouchableOpacity>
-        <Text style={styles.headerText}>Sign In</Text>
+        <Text style={styles.headerText}>Đăng nhập</Text>
       </View>
 
       {/* Main */}
@@ -35,8 +77,8 @@ export default function LoginScreen() {
           <View style={styles.logoCircle}>
             <Text style={styles.logoEmoji}>🍔</Text>
           </View>
-          <Text style={styles.welcomeText}>Welcome Back!</Text>
-          <Text style={styles.subText}>Sign in to continue</Text>
+          <Text style={styles.welcomeText}>Chào mừng bạn</Text>
+          <Text style={styles.subText}>Đăng nhập để tiếp tục</Text>
         </View>
 
         {/* Form */}
@@ -76,7 +118,7 @@ export default function LoginScreen() {
             </View>
 
             <TextInput
-              placeholder="Password"
+              placeholder="Mật khẩu"
               secureTextEntry
               value={password}
               onChangeText={setPassword}
@@ -88,23 +130,23 @@ export default function LoginScreen() {
           </View>
 
           <TouchableOpacity style={{ alignSelf: "flex-end", marginTop: 4 }}>
-            <Text style={styles.forgotText}>Forgot password?</Text>
+            <Text style={styles.forgotText}>Quên mật khẩu?</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={handleLogin} style={styles.signInButton}>
-            <Text style={styles.signInText}>Sign In</Text>
+            <Text style={styles.signInText}>Đăng nhập</Text>
           </TouchableOpacity>
         </View>
 
         {/* Footer */}
         <View style={{ alignItems: "center", marginTop: 32 }}>
           <Text style={{ color: "#6b7280" }}>
-            Don’t have an account?{" "}
+            Bạn chưa có tài khoản?{" "}
             <Text
               onPress={() => router.push("/register")}
               style={{ color: "#f97316", fontWeight: "600" }}
             >
-              Sign Up
+              Đăng ký
             </Text>
           </Text>
         </View>
