@@ -23,7 +23,6 @@ export default function ProfileScreen() {
     { icon: "bag-outline", label: "My Orders", action: () => router.push("/(tabs)/orders") },
     { icon: "location-outline", label: "Delivery Address", action: () => router.push("/(tabs)/delivery-address") },
     { icon: "settings-outline", label: "Settings", action: () => router.push("/(tabs)/settings") },
-    
   ];
 
   return (
@@ -72,6 +71,16 @@ export default function ProfileScreen() {
           ))}
         </View>
 
+        {/* Admin Dashboard Button */}
+        <TouchableOpacity
+          style={styles.adminButton}
+          onPress={() => router.push("/(tabs)/admin")}
+        >
+          <Ionicons name="shield-outline" size={20} color="#f97316" />
+          <Text style={styles.adminText}>Admin Dashboard</Text>
+        </TouchableOpacity>
+
+        {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="#ef4444" />
           <Text style={styles.logoutText}>Logout</Text>
@@ -79,7 +88,9 @@ export default function ProfileScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Foodify v1.0.0</Text>
-          <Text style={[styles.footerText, { marginTop: 2 }]}>Made with QuanNM</Text>
+          <Text style={[styles.footerText, { marginTop: 2 }]}>
+            Made with QuanNM
+          </Text>
         </View>
       </ScrollView>
     </View>
@@ -138,6 +149,19 @@ const styles = StyleSheet.create({
     borderRadius: 50,
   },
   menuLabel: { color: "#374151", fontSize: 15 },
+  adminButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "white",
+    borderWidth: 1,
+    borderColor: "#f97316",
+    borderRadius: 20,
+    paddingVertical: 14,
+    marginTop: 20,
+  },
+  adminText: { color: "#f97316", fontWeight: "600", fontSize: 15 },
   logoutButton: {
     flexDirection: "row",
     alignItems: "center",
