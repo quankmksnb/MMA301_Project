@@ -87,17 +87,36 @@ export const getOrderById = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
+
+    // ✅ 1. Danh sách trạng thái hợp lệ
+    const allowedStatuses = ["pending", "confirmed", "delivering", "completed", "cancelled"];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status value" });
+    }
+
+    // ✅ 2. Cập nhật đơn hàng
     const order = await Order.findByIdAndUpdate(
       req.params.id,
       { status },
       { new: true }
-    );
-    if (!order) return res.status(404).json({ message: "Order not found" });
-    res.status(200).json({ message: "Order status updated", order });
+    ).populate("user", "name email");
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    // ✅ 3. Trả về dữ liệu
+    res.status(200).json({
+      message: "Order status updated successfully",
+      order,
+    });
   } catch (error) {
+    console.error("🧨 Update order status error:", error.message);
     res.status(500).json({ message: "Server error", error: error.message });
   }
 };
+
+
 
 // 🟠 Cancel order (user)
 export const cancelOrder = async (req, res) => {

@@ -13,6 +13,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { changePassword } from "../services/userService"; // 🔥 import API đổi mật khẩu
 
 export default function SecuritySupportScreen() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -25,6 +26,10 @@ export default function SecuritySupportScreen() {
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
 
+  const [currentPass, setCurrentPass] = useState("");
+  const [newPass, setNewPass] = useState("");
+  const [confirmPass, setConfirmPass] = useState("");
+
   const [privacySettings, setPrivacySettings] = useState({
     shareData: false,
     personalized: true,
@@ -35,48 +40,71 @@ export default function SecuritySupportScreen() {
     setPrivacySettings((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handlePasswordChange = () => {
-    Alert.alert("✅ Success", "Password changed successfully!");
-    setShowPasswordModal(false);
+  // 🟢 Xử lý đổi mật khẩu qua API
+  const handlePasswordChange = async () => {
+    if (!currentPass || !newPass || !confirmPass) {
+      Alert.alert("Thiếu thông tin", "Vui lòng điền đủ các trường mật khẩu.");
+      return;
+    }
+    if (newPass.length < 6) {
+      Alert.alert("Mật khẩu yếu", "Mật khẩu mới phải có ít nhất 6 ký tự.");
+      return;
+    }
+    if (newPass !== confirmPass) {
+      Alert.alert("Lỗi xác nhận", "Mật khẩu xác nhận không khớp.");
+      return;
+    }
+
+    try {
+      await changePassword(currentPass, newPass);
+      Alert.alert("✅ Thành công", "Đổi mật khẩu thành công!");
+      setShowPasswordModal(false);
+      setCurrentPass("");
+      setNewPass("");
+      setConfirmPass("");
+    } catch (err: any) {
+      console.log("🧨 Lỗi đổi mật khẩu:", err.message);
+      Alert.alert("Lỗi", "Không thể đổi mật khẩu. Vui lòng kiểm tra lại!");
+    }
   };
 
   const handleSendSupport = () => {
-    Alert.alert("📨 Sent", "Your message has been sent!");
+    Alert.alert("📨 Đã gửi", "Tin nhắn của bạn đã được gửi!");
     setShowHelpModal(false);
   };
 
   const sections = [
     {
-      title: "Security",
+      title: "Bảo mật",
       items: [
         {
           icon: "lock-closed-outline",
-          label: "Change Password",
+          label: "Đổi mật khẩu",
           onPress: () => setShowPasswordModal(true),
         },
         {
           icon: "shield-checkmark-outline",
-          label: "Privacy Settings",
+          label: "Cài đặt quyền riêng tư",
           onPress: () => setShowPrivacyModal(true),
         },
       ],
     },
     {
-      title: "Support",
+      title: "Hỗ trợ",
       items: [
         {
           icon: "help-circle-outline",
-          label: "Help Center",
+          label: "Trung tâm trợ giúp",
           onPress: () => setShowHelpModal(true),
         },
         {
           icon: "document-text-outline",
-          label: "Terms & Conditions",
+          label: "Điều khoản & Điều kiện",
           onPress: () => setShowTermsModal(true),
         },
         {
           icon: "document-lock-outline",
-          label: "Privacy Policy",
+          label: "Chính sách bảo mật",
           onPress: () => setShowPolicyModal(true),
         },
       ],
@@ -90,7 +118,7 @@ export default function SecuritySupportScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Security & Support</Text>
+        <Text style={styles.headerTitle}>Bảo mật & Hỗ trợ</Text>
       </View>
 
       <ScrollView
@@ -128,24 +156,27 @@ export default function SecuritySupportScreen() {
         ))}
       </ScrollView>
 
-      {/* ---------------- Password Modal ---------------- */}
+      {/* ---------------- Đổi mật khẩu ---------------- */}
       <Modal visible={showPasswordModal} animationType="slide">
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Change Password</Text>
+            <Text style={styles.modalTitle}>Đổi mật khẩu</Text>
             <TouchableOpacity onPress={() => setShowPasswordModal(false)}>
               <Ionicons name="close" size={22} color="#111827" />
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={{ padding: 20 }}>
+            {/* Mật khẩu hiện tại */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Current Password</Text>
+              <Text style={styles.label}>Mật khẩu hiện tại</Text>
               <View style={styles.passwordBox}>
                 <TextInput
                   secureTextEntry={!showCurrentPass}
-                  placeholder="Enter current password"
+                  placeholder="Nhập mật khẩu hiện tại"
                   style={styles.input}
+                  value={currentPass}
+                  onChangeText={setCurrentPass}
                 />
                 <TouchableOpacity
                   onPress={() => setShowCurrentPass(!showCurrentPass)}
@@ -159,13 +190,16 @@ export default function SecuritySupportScreen() {
               </View>
             </View>
 
+            {/* Mật khẩu mới */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>New Password</Text>
+              <Text style={styles.label}>Mật khẩu mới</Text>
               <View style={styles.passwordBox}>
                 <TextInput
                   secureTextEntry={!showNewPass}
-                  placeholder="Enter new password"
+                  placeholder="Nhập mật khẩu mới"
                   style={styles.input}
+                  value={newPass}
+                  onChangeText={setNewPass}
                 />
                 <TouchableOpacity onPress={() => setShowNewPass(!showNewPass)}>
                   <Ionicons
@@ -177,13 +211,16 @@ export default function SecuritySupportScreen() {
               </View>
             </View>
 
+            {/* Xác nhận mật khẩu */}
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
+              <Text style={styles.label}>Xác nhận mật khẩu mới</Text>
               <View style={styles.passwordBox}>
                 <TextInput
                   secureTextEntry={!showConfirmPass}
-                  placeholder="Confirm password"
+                  placeholder="Nhập lại mật khẩu"
                   style={styles.input}
+                  value={confirmPass}
+                  onChangeText={setConfirmPass}
                 />
                 <TouchableOpacity
                   onPress={() => setShowConfirmPass(!showConfirmPass)}
@@ -201,163 +238,8 @@ export default function SecuritySupportScreen() {
               style={[styles.primaryBtn, { marginTop: 20 }]}
               onPress={handlePasswordChange}
             >
-              <Text style={styles.primaryText}>Change Password</Text>
+              <Text style={styles.primaryText}>Đổi mật khẩu</Text>
             </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-
-      {/* ---------------- Privacy Modal ---------------- */}
-      <Modal visible={showPrivacyModal} animationType="slide">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Privacy Settings</Text>
-            <TouchableOpacity onPress={() => setShowPrivacyModal(false)}>
-              <Ionicons name="close" size={22} color="#111827" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={{ padding: 20 }}>
-            {Object.entries(privacySettings).map(([key, val]) => (
-              <View
-                key={key}
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 16,
-                }}
-              >
-                <View>
-                  <Text style={styles.label}>
-                    {key === "shareData"
-                      ? "Share Data with Partners"
-                      : key === "personalized"
-                      ? "Personalized Experience"
-                      : "Location Tracking"}
-                  </Text>
-                  <Text style={styles.subText}>
-                    {key === "shareData"
-                      ? "Allow us to share anonymized data"
-                      : key === "personalized"
-                      ? "Get recommendations based on your activity"
-                      : "Allow location for better delivery"}
-                  </Text>
-                </View>
-                <Switch
-                  trackColor={{ false: "#d1d5db", true: "#fb923c" }}
-                  thumbColor="#fff"
-                  value={val}
-                  onValueChange={() =>
-                    handlePrivacyToggle(key as keyof typeof privacySettings)
-                  }
-                />
-              </View>
-            ))}
-
-            <TouchableOpacity
-              style={[styles.primaryBtn, { marginTop: 10 }]}
-              onPress={() => {
-                Alert.alert("✅ Saved", "Privacy settings saved");
-                setShowPrivacyModal(false);
-              }}
-            >
-              <Text style={styles.primaryText}>Save Settings</Text>
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-
-      {/* ---------------- Help Modal ---------------- */}
-      <Modal visible={showHelpModal} animationType="slide">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Help Center</Text>
-            <TouchableOpacity onPress={() => setShowHelpModal(false)}>
-              <Ionicons name="close" size={22} color="#111827" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView contentContainerStyle={{ padding: 20 }}>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Name</Text>
-              <TextInput style={styles.input} placeholder="Your name" />
-            </View>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Your email"
-                keyboardType="email-address"
-              />
-            </View>
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Message</Text>
-              <TextInput
-                style={[styles.input, { height: 100 }]}
-                multiline
-                placeholder="How can we help you?"
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.primaryBtn, { marginTop: 10 }]}
-              onPress={handleSendSupport}
-            >
-              <Text style={styles.primaryText}>Send Message</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-
-      {/* ---------------- Terms Modal ---------------- */}
-      <Modal visible={showTermsModal} animationType="slide">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Terms & Conditions</Text>
-            <TouchableOpacity onPress={() => setShowTermsModal(false)}>
-              <Ionicons name="close" size={22} color="#111827" />
-            </TouchableOpacity>
-          </View>
-          <ScrollView contentContainerStyle={{ padding: 20 }}>
-            <Text style={styles.subText}>
-              By using our service, you agree to:
-            </Text>
-            <Text style={styles.listItem}>
-              • You must be at least 18 years old.
-            </Text>
-            <Text style={styles.listItem}>
-              • We may update our terms anytime.
-            </Text>
-            <Text style={styles.listItem}>
-              • Violations may lead to account termination.
-            </Text>
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-
-      {/* ---------------- Policy Modal ---------------- */}
-      <Modal visible={showPolicyModal} animationType="slide">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Privacy Policy</Text>
-            <TouchableOpacity onPress={() => setShowPolicyModal(false)}>
-              <Ionicons name="close" size={22} color="#111827" />
-            </TouchableOpacity>
-          </View>
-          <ScrollView contentContainerStyle={{ padding: 20 }}>
-            <Text style={styles.subText}>
-              We collect and store data to improve our services:
-            </Text>
-            <Text style={styles.listItem}>
-              • Your personal info is securely stored.
-            </Text>
-            <Text style={styles.listItem}>
-              • We never share your data without consent.
-            </Text>
-            <Text style={styles.listItem}>
-              • You can request data deletion anytime.
-            </Text>
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -400,8 +282,6 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   itemLabel: { color: "#111827", fontSize: 15, fontWeight: "500" },
-
-  // Modal styles
   modalContainer: { flex: 1, backgroundColor: "white" },
   modalHeader: {
     flexDirection: "row",
@@ -415,11 +295,9 @@ const styles = StyleSheet.create({
   formGroup: { marginBottom: 16 },
   label: { color: "#374151", fontSize: 14, marginBottom: 6 },
   input: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    flex: 1,
     color: "#111827",
+    fontSize: 14,
   },
   passwordBox: {
     flexDirection: "row",
@@ -437,6 +315,4 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   primaryText: { color: "white", fontWeight: "600", fontSize: 15 },
-  subText: { color: "#6b7280", fontSize: 13, marginBottom: 8 },
-  listItem: { color: "#6b7280", fontSize: 13, marginBottom: 6 },
 });

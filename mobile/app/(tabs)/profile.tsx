@@ -1,47 +1,114 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { getProfile } from "../services/userService";
+import { logoutUser } from "../services/authService";
+import AsyncStorage from "@react-native-async-storage/async-storage"; // ✅ thêm dòng này
+
 
 export default function ProfileScreen() {
-  const userName = "John Doe";
-  const userEmail = "john@example.com";
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
+  // 🟢 Load thông tin user khi vào màn hình
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const data = await getProfile();
+        setUser(data);
+      } catch (err: any) {
+        console.log("🧨 Lỗi tải user:", err.message);
+        Alert.alert("Lỗi", "Không thể tải thông tin tài khoản!");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProfile();
+  }, []);
+
+  // 🟠 Xử lý logout
   const handleLogout = () => {
-    router.replace("/login");
+    Alert.alert("Đăng xuất", "Bạn có chắc muốn đăng xuất không?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Đăng xuất",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await logoutUser(); // ✅ gọi API logout thật
+          } catch (err: any) {
+            console.log("🧨 Lỗi logout:", err.message);
+          } finally {
+            // ✅ Dù API lỗi vẫn xoá token local cho an toàn
+            await AsyncStorage.multiRemove(["accessToken", "refreshToken", "user"]);
+            router.replace("/login");
+          }
+        },
+      },
+    ]);
   };
 
   const menuItems = [
-    { icon: "person-outline", label: "Edit Profile", action: () => router.push("/(tabs)/edit-profile") },
-    { icon: "bag-outline", label: "My Orders", action: () => router.push("/(tabs)/orders") },
-    { icon: "location-outline", label: "Delivery Address", action: () => router.push("/(tabs)/delivery-address") },
-    { icon: "settings-outline", label: "Settings", action: () => router.push("/(tabs)/settings") },
+    {
+      icon: "person-outline",
+      label: "Chỉnh sửa hồ sơ",
+      action: () => router.push("/(tabs)/edit-profile"),
+    },
+    {
+      icon: "bag-outline",
+      label: "Đơn hàng của tôi",
+      action: () => router.push("/(tabs)/orders"),
+    },
+    {
+      icon: "location-outline",
+      label: "Địa chỉ giao hàng",
+      action: () => router.push("/(tabs)/delivery-address"),
+    },
+    {
+      icon: "settings-outline",
+      label: "Cài đặt",
+      action: () => router.push("/(tabs)/settings"),
+    },
   ];
 
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#f97316" />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <LinearGradient
         colors={["#fb923c", "#f97316"]}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>Profile</Text>
+        <Text style={styles.headerTitle}>Tài khoản</Text>
 
         <View style={styles.userInfo}>
           <View style={styles.avatar}>
             <Ionicons name="person-outline" size={38} color="#f97316" />
           </View>
           <View>
-            <Text style={styles.userName}>{userName}</Text>
-            <Text style={styles.userEmail}>{userEmail}</Text>
+            <Text style={styles.userName}>{user?.name || "Người dùng"}</Text>
+            <Text style={styles.userEmail}>
+              {user?.email || "user@example.com"}
+            </Text>
           </View>
         </View>
       </LinearGradient>
@@ -50,6 +117,7 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.content}
       >
+        {/* Danh sách menu */}
         <View style={styles.menuContainer}>
           {menuItems.map((item, index) => (
             <TouchableOpacity
@@ -71,34 +139,38 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* Admin Dashboard Button */}
-        <TouchableOpacity
-          style={styles.adminButton}
-          onPress={() => router.push("/(tabs)/admin")}
-        >
-          <Ionicons name="shield-outline" size={20} color="#f97316" />
-          <Text style={styles.adminText}>Admin Dashboard</Text>
-        </TouchableOpacity>
+        {/* Nút Admin Dashboard */}
+        {user?.role === "seller" && (
+          <TouchableOpacity
+            style={styles.adminButton}
+            onPress={() => router.push("/(tabs)/admin")}
+          >
+            <Ionicons name="shield-outline" size={20} color="#f97316" />
+            <Text style={styles.adminText}>Admin Dashboard</Text>
+          </TouchableOpacity>
+        )}
 
-        {/* Logout Button */}
+        {/* Nút Logout */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
           <Ionicons name="log-out-outline" size={20} color="#ef4444" />
-          <Text style={styles.logoutText}>Logout</Text>
+          <Text style={styles.logoutText}>Đăng xuất</Text>
         </TouchableOpacity>
 
+        {/* Footer */}
         <View style={styles.footer}>
           <Text style={styles.footerText}>Foodify v1.0.0</Text>
           <Text style={[styles.footerText, { marginTop: 2 }]}>
-            Made with QuanNM
+            Made with ❤️ by QuanNM
           </Text>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f9fafb" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     paddingTop: 10,
     paddingBottom: 10,
@@ -143,11 +215,7 @@ const styles = StyleSheet.create({
   },
   menuItemBorder: { borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
   menuLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
-  iconCircle: {
-    backgroundColor: "#fff7ed",
-    padding: 8,
-    borderRadius: 50,
-  },
+  iconCircle: { backgroundColor: "#fff7ed", padding: 8, borderRadius: 50 },
   menuLabel: { color: "#374151", fontSize: 15 },
   adminButton: {
     flexDirection: "row",

@@ -1,27 +1,70 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
+  ActivityIndicator,
+  Alert,
   StyleSheet,
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
+import { getProfile, updateProfile } from "../services/userService";
 
 export default function EditProfileScreen() {
-  const [name, setName] = useState("Hoàng Hưng");
-  const [email, setEmail] = useState("hung@example.com");
-  const [phone, setPhone] = useState("+84 987 654 321");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    // TODO: Sau này lưu API
-    alert("✅ Profile updated successfully!");
-    router.back(); // Quay lại trang profile
+  // 🟢 Load profile khi mở trang
+  useEffect(() => {
+    const loadProfile = async () => {
+      try {
+        const data = await getProfile();
+        setName(data.name || "");
+        setEmail(data.email || "");
+        setPhone(data.phone || "");
+      } catch (err: any) {
+        console.log("🧨 Lỗi tải profile:", err.message);
+        Alert.alert("Lỗi", "Không thể tải thông tin người dùng!");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadProfile();
+  }, []);
+
+  // 🟠 Xử lý lưu thông tin
+  const handleSave = async () => {
+    if (!name || !email || !phone) {
+      Alert.alert("Thiếu thông tin", "Vui lòng điền đủ họ tên, email và số điện thoại.");
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateProfile({ name, phone });
+      Alert.alert("✅ Thành công", "Cập nhật hồ sơ thành công!");
+      router.back();
+    } catch (err: any) {
+      console.log("🧨 Lỗi lưu:", err.message);
+      Alert.alert("Lỗi", "Không thể lưu thay đổi, vui lòng thử lại!");
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#f97316" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -30,12 +73,15 @@ export default function EditProfileScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
+        <Text style={styles.headerTitle}>Chỉnh sửa hồ sơ</Text>
       </View>
 
-      {/* Content */}
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
-        {/* Avatar */}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Avatar (giữ nguyên - sau này có thể update ảnh sau) */}
         <View style={styles.avatarBox}>
           <View style={styles.avatarWrapper}>
             <View style={styles.avatarCircle}>
@@ -45,55 +91,61 @@ export default function EditProfileScreen() {
               <Ionicons name="camera" size={18} color="#fff" />
             </TouchableOpacity>
           </View>
-          <Text style={styles.avatarHint}>Tap to change photo</Text>
+          <Text style={styles.avatarHint}>Chạm để đổi ảnh</Text>
         </View>
 
         {/* Form */}
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Full Name</Text>
+          <Text style={styles.label}>Họ và tên</Text>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="Enter your name"
+            placeholder="Nhập họ và tên"
             placeholderTextColor="#9ca3af"
           />
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Email Address</Text>
+          <Text style={styles.label}>Email</Text>
           <TextInput
             style={styles.input}
             value={email}
             onChangeText={setEmail}
+            editable={false}
             keyboardType="email-address"
-            placeholder="Enter your email"
+            placeholder="Nhập email"
             placeholderTextColor="#9ca3af"
           />
         </View>
 
         <View style={styles.formGroup}>
-          <Text style={styles.label}>Phone Number</Text>
+          <Text style={styles.label}>Số điện thoại</Text>
           <TextInput
             style={styles.input}
             value={phone}
             onChangeText={setPhone}
             keyboardType="phone-pad"
-            placeholder="Enter your phone"
+            placeholder="Nhập số điện thoại"
             placeholderTextColor="#9ca3af"
           />
         </View>
 
         {/* Save & Cancel */}
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-          <Text style={styles.saveText}>Save Changes</Text>
+        <TouchableOpacity
+          style={[styles.saveBtn, saving && { opacity: 0.6 }]}
+          onPress={handleSave}
+          disabled={saving}
+        >
+          {saving ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.saveText}>Lưu thay đổi</Text>
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.cancelBtn}
-          onPress={() => router.back()}
-        >
-          <Text style={styles.cancelText}>Cancel</Text>
+        <TouchableOpacity style={styles.cancelBtn} onPress={() => router.back()}>
+          <Text style={styles.cancelText}>Hủy</Text>
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -102,7 +154,7 @@ export default function EditProfileScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f9fafb" },
-
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     backgroundColor: "#f97316",
     paddingVertical: 14,
@@ -116,16 +168,8 @@ const styles = StyleSheet.create({
     padding: 6,
     marginRight: 8,
   },
-  headerTitle: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "600",
-  },
-
-  content: {
-    padding: 20,
-  },
-
+  headerTitle: { color: "white", fontSize: 18, fontWeight: "600" },
+  content: { padding: 20 },
   avatarBox: { alignItems: "center", marginTop: 12, marginBottom: 20 },
   avatarWrapper: { position: "relative" },
   avatarCircle: {
@@ -152,12 +196,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
   },
-  avatarHint: {
-    marginTop: 8,
-    color: "#6b7280",
-    fontSize: 13,
-  },
-
+  avatarHint: { marginTop: 8, color: "#6b7280", fontSize: 13 },
   formGroup: { marginBottom: 16 },
   label: { color: "#374151", fontWeight: "500", marginBottom: 6 },
   input: {
@@ -170,7 +209,6 @@ const styles = StyleSheet.create({
     color: "#111827",
     fontSize: 14,
   },
-
   saveBtn: {
     backgroundColor: "#f97316",
     paddingVertical: 14,
@@ -182,7 +220,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   saveText: { color: "white", fontWeight: "600", fontSize: 16 },
-
   cancelBtn: {
     backgroundColor: "white",
     paddingVertical: 14,

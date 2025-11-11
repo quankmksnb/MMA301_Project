@@ -1,482 +1,635 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
-  FlatList,
+  TextInput,
   Modal,
   ScrollView,
   StyleSheet,
+  Alert,
 } from "react-native";
 import {
-  Pencil,
-  Trash2,
-  Plus,
-  Search,
-  Package,
-  ShoppingBag,
-  Users,
   DollarSign,
+  ShoppingBag,
+  Package,
+  Users,
+  Plus,
 } from "lucide-react-native";
+import { Platform, ActionSheetIOS } from "react-native";
+import { Pencil, Trash2, Image as ImageIcon } from "lucide-react-native";
+import { Image } from "react-native";
 
-interface Product {
-  id: string;
-  name: string;
-  category: string;
-  price: number;
-  stock: number;
-  image: string;
-  description: string;
-}
-
-interface Order {
-  id: string;
-  customer: string;
-  total: number;
-  status: string;
-  date: string;
-  items: number;
-}
-
-interface UserData {
-  id: string;
-  name: string;
-  email: string;
-  orders: number;
-  totalSpent: number;
-  joinDate: string;
-}
+import {
+  getCategories,
+  getAllProducts,
+  addProduct,
+  updateProduct,
+  deleteProduct,
+} from "../services/productService";
+import { getAllOrders, getAllUsers, updateOrderStatus } from "../services/sellerService";
+import { router } from "expo-router";
 
 export default function AdminDashboardScreen() {
   const [activeTab, setActiveTab] = useState<
     "overview" | "products" | "orders" | "users"
   >("overview");
-  const [showProductModal, setShowProductModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
   const [searchTerm, setSearchTerm] = useState("");
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<any>({
+    name: "",
+    description: "",
+    price: "",
+    stock: "",
+    category: "",
+    image: "",
+  });
 
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: "1",
-      name: "Margherita Pizza",
-      category: "Pizza",
-      price: 12.99,
-      stock: 50,
-      image: "pizza.jpg",
-      description: "Classic pizza with tomato and mozzarella",
-    },
-    {
-      id: "2",
-      name: "Chicken Burger",
-      category: "Burgers",
-      price: 8.99,
-      stock: 30,
-      image: "burger.jpg",
-      description: "Juicy chicken burger with lettuce",
-    },
-    {
-      id: "3",
-      name: "Caesar Salad",
-      category: "Salads",
-      price: 7.99,
-      stock: 25,
-      image: "salad.jpg",
-      description: "Fresh caesar salad with croutons",
-    },
-  ]);
+  const [categories, setCategories] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
 
-  const [orders, setOrders] = useState<Order[]>([
-    {
-      id: "ORD-001",
-      customer: "John Doe",
-      total: 45.99,
-      status: "Completed",
-      date: "2025-11-10",
-      items: 3,
-    },
-    {
-      id: "ORD-002",
-      customer: "Jane Smith",
-      total: 32.5,
-      status: "Processing",
-      date: "2025-11-11",
-      items: 2,
-    },
-    {
-      id: "ORD-003",
-      customer: "Mike Johnson",
-      total: 28.99,
-      status: "Pending",
-      date: "2025-11-11",
-      items: 2,
-    },
-  ]);
-
-  const [users, setUsers] = useState<UserData[]>([
-    {
-      id: "1",
-      name: "John Doe",
-      email: "john@example.com",
-      orders: 15,
-      totalSpent: 450.0,
-      joinDate: "2024-01-15",
-    },
-    {
-      id: "2",
-      name: "Jane Smith",
-      email: "jane@example.com",
-      orders: 8,
-      totalSpent: 280.0,
-      joinDate: "2024-03-20",
-    },
-    {
-      id: "3",
-      name: "Mike Johnson",
-      email: "mike@example.com",
-      orders: 12,
-      totalSpent: 380.0,
-      joinDate: "2024-02-10",
-    },
-  ]);
-
-  // === CRUD LOGIC ===
-  const handleAddProduct = (newProduct: Product) => {
-    setProducts((prev) => [...prev, newProduct]);
-    setShowProductModal(false);
+  // 🟢 Load toàn bộ dữ liệu admin
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        const [cateRes, orderRes, userRes, productRes] = await Promise.all([
+          getCategories(),
+          getAllOrders(),
+          getAllUsers(),
+          getAllProducts(),
+        ]);
+        setCategories(cateRes);
+        setOrders(orderRes);
+        setUsers(userRes);
+        setProducts(productRes);
+      } catch {
+        console.log("🧨 Lỗi load dashboard");
+        Alert.alert("Lỗi", "Không thể tải dữ liệu quản trị!");
+      }
+    };
+    loadData();
+  }, []);
+  const openCategorySelector = () => {
+    if (Platform.OS === "ios") {
+      // iOS native ActionSheet
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: "Chọn danh mục",
+          options: [...categories.map((c) => c.name), "Hủy"],
+          cancelButtonIndex: categories.length,
+        },
+        (buttonIndex) => {
+          if (buttonIndex < categories.length) {
+            const selected = categories[buttonIndex];
+            setEditingProduct({ ...editingProduct, category: selected._id });
+          }
+        }
+      );
+    } else {
+      // Android hoặc Web fallback dùng modal cũ
+      setShowCategoryModal(true);
+    }
   };
 
-  const handleEditProduct = (updated: Product) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === updated.id ? updated : p))
+  // 🟢 Thêm sản phẩm
+  const handleAddProduct = async () => {
+    try {
+      const { name, description, price, stock, category, image } =
+        editingProduct;
+      if (!name || !price || !category)
+        return Alert.alert(
+          "Thiếu thông tin",
+          "Vui lòng nhập đủ tên, giá, danh mục!"
+        );
+
+      const res = await addProduct({
+        name,
+        description,
+        price: parseFloat(price),
+        stock: parseInt(stock || "0"),
+        category,
+        image:
+          image ||
+          "https://lavenderstudio.com.vn/wp-content/uploads/2017/03/chup-san-pham.jpg",
+      });
+
+      setProducts((prev) => [...prev, res.product]);
+      setShowProductModal(false);
+      setEditingProduct({
+        name: "",
+        description: "",
+        price: "",
+        stock: "",
+        category: "",
+        image: "",
+      });
+      Alert.alert("✅ Thành công", "Đã thêm sản phẩm mới!");
+    } catch (err: any) {
+      Alert.alert(
+        "Lỗi",
+        err.response?.data?.message || "Không thể thêm sản phẩm!"
+      );
+    }
+  };
+
+  // 🟠 Sửa sản phẩm
+  const handleEditProduct = async () => {
+    try {
+      const { _id, name, description, price, stock, category, image } =
+        editingProduct;
+
+      const res = await updateProduct(_id, {
+        name,
+        description,
+        price: parseFloat(price),
+        stock: parseInt(stock || "0"),
+        category,
+        image,
+      });
+
+      setProducts((prev) => prev.map((p) => (p._id === _id ? res.product : p)));
+      setShowProductModal(false);
+      Alert.alert("✅ Thành công", "Đã cập nhật sản phẩm!");
+    } catch (err: any) {
+      Alert.alert(
+        "Lỗi",
+        err.response?.data?.message || "Không thể cập nhật sản phẩm!"
+      );
+    }
+  };
+
+  // 🔴 Xóa sản phẩm
+  const handleDeleteProduct = async (id: string) => {
+    Alert.alert("Xác nhận", "Bạn có chắc muốn xóa sản phẩm này?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Xóa",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteProduct(id);
+            setProducts((prev) => prev.filter((p) => p._id !== id));
+            Alert.alert("🗑️ Đã xóa sản phẩm!");
+          } catch {
+            Alert.alert("Lỗi", "Không thể xóa sản phẩm!");
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleChangeStatus = (orderId: string, currentStatus: string) => {
+  const options = ["pending", "confirmed", "delivering", "completed", "cancelled"];
+
+  const currentIndex = options.indexOf(currentStatus);
+
+  if (Platform.OS === "ios") {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: "Chọn trạng thái mới",
+        options: [...options.map((s) => s.toUpperCase()), "Hủy"],
+        cancelButtonIndex: options.length,
+      },
+      async (buttonIndex) => {
+        if (buttonIndex < options.length) {
+          const newStatus = options[buttonIndex];
+          if (newStatus === currentStatus) return;
+
+          try {
+            const res = await updateOrderStatus(orderId, newStatus);
+            setOrders((prev) =>
+              prev.map((o) =>
+                o._id === orderId ? { ...o, status: newStatus } : o
+              )
+            );
+            Alert.alert("✅ Thành công", `Đã cập nhật trạng thái: ${newStatus}`);
+          } catch (err: any) {
+            Alert.alert(
+              "Lỗi",
+              err.response?.data?.message || "Không thể cập nhật trạng thái!"
+            );
+          }
+        }
+      }
     );
-    setEditingProduct(null);
-    setShowProductModal(false);
-  };
-
-  const handleDeleteProduct = (id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-  };
-
-  const handleDeleteOrder = (id: string) => {
-    setOrders((prev) => prev.filter((o) => o.id !== id));
-  };
-
-  const handleUpdateOrderStatus = (id: string, status: string) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === id ? { ...o, status } : o))
+  } else {
+    // Android fallback
+    Alert.alert(
+      "Chọn trạng thái mới",
+      "",
+      options.map((s) => ({
+        text: s.toUpperCase(),
+        onPress: async () => {
+          try {
+            await updateOrderStatus(orderId, s);
+            setOrders((prev) =>
+              prev.map((o) =>
+                o._id === orderId ? { ...o, status: s } : o
+              )
+            );
+            Alert.alert("✅ Thành công", `Đã cập nhật trạng thái: ${s}`);
+          } catch {
+            Alert.alert("Lỗi", "Không thể cập nhật trạng thái!");
+          }
+        },
+      }))
     );
-  };
+  }
+};
 
-  const handleDeleteUser = (id: string) => {
-    setUsers((prev) => prev.filter((u) => u.id !== id));
-  };
 
-  // === FILTERS ===
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const filteredOrders = orders.filter(
-    (o) =>
-      o.customer.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      o.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-  const filteredUsers = users.filter(
-    (u) =>
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  // === RENDER ===
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>Admin Dashboard</Text>
+      <Text style={styles.header}>📊 Bảng điều khiển Admin</Text>
 
-      {/* TABS */}
+      {/* TAB MENU */}
       <View style={styles.tabBar}>
-        {(["overview", "products", "orders", "users"] as const).map((tab) => (
+        {["overview", "products", "orders", "users"].map((tab) => (
           <TouchableOpacity
             key={tab}
-            onPress={() => setActiveTab(tab)}
+            onPress={() => setActiveTab(tab as any)}
             style={[styles.tab, activeTab === tab && styles.activeTab]}
           >
             <Text
-              style={[styles.tabText, activeTab === tab && styles.activeTabText]}
+              style={[
+                styles.tabText,
+                activeTab === tab && styles.activeTabText,
+              ]}
             >
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === "overview"
+                ? "Tổng quan"
+                : tab === "products"
+                ? "Sản phẩm"
+                : tab === "orders"
+                ? "Đơn hàng"
+                : "Người dùng"}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <ScrollView style={{ marginTop: 10 }}>
-        {/* OVERVIEW */}
+      <ScrollView style={{ marginTop: 10 }} keyboardShouldPersistTaps="handled">
+        {/* 🔹 OVERVIEW */}
         {activeTab === "overview" && (
           <View>
-            {/* Stats */}
             <View style={styles.statsGrid}>
               <View style={styles.statCard}>
                 <DollarSign color="#22c55e" size={20} />
-                <Text style={styles.statLabel}>Total Revenue</Text>
-                <Text style={styles.statValue}>$12,450</Text>
+                <Text style={styles.statLabel}>Tổng doanh thu</Text>
+                <Text style={styles.statValue}>
+                  ₫
+                  {orders
+                    .reduce((sum, o) => sum + (o.totalAmount || 0), 0)
+                    .toLocaleString("vi-VN")}
+                </Text>
               </View>
               <View style={styles.statCard}>
                 <ShoppingBag color="#3b82f6" size={20} />
-                <Text style={styles.statLabel}>Total Orders</Text>
+                <Text style={styles.statLabel}>Tổng đơn hàng</Text>
                 <Text style={styles.statValue}>{orders.length}</Text>
               </View>
               <View style={styles.statCard}>
                 <Package color="#f97316" size={20} />
-                <Text style={styles.statLabel}>Products</Text>
+                <Text style={styles.statLabel}>Tổng sản phẩm</Text>
                 <Text style={styles.statValue}>{products.length}</Text>
               </View>
               <View style={styles.statCard}>
                 <Users color="#a855f7" size={20} />
-                <Text style={styles.statLabel}>Users</Text>
+                <Text style={styles.statLabel}>Người dùng</Text>
                 <Text style={styles.statValue}>{users.length}</Text>
               </View>
             </View>
-
-            {/* Recent Orders */}
-            <Text style={styles.sectionTitle}>Recent Orders</Text>
-            {orders.slice(0, 3).map((o) => (
-              <View key={o.id} style={styles.card}>
-                <View>
-                  <Text style={styles.cardTitle}>{o.id}</Text>
-                  <Text style={styles.cardCategory}>{o.customer}</Text>
-                </View>
-                <Text
-                  style={[
-                    styles.status,
-                    o.status === "Completed"
-                      ? { color: "green" }
-                      : o.status === "Processing"
-                      ? { color: "blue" }
-                      : { color: "orange" },
-                  ]}
-                >
-                  {o.status}
-                </Text>
-              </View>
-            ))}
-
-            {/* Top Products */}
-            <Text style={styles.sectionTitle}>Top Products</Text>
-            {products.slice(0, 3).map((p) => (
-              <View key={p.id} style={styles.card}>
-                <View>
-                  <Text style={styles.cardTitle}>{p.name}</Text>
-                  <Text style={styles.cardCategory}>{p.category}</Text>
-                </View>
-                <Text style={styles.cardPrice}>${p.price}</Text>
-              </View>
-            ))}
           </View>
         )}
 
-        {/* PRODUCTS TAB */}
+        {/* 🔹 PRODUCTS */}
         {activeTab === "products" && (
           <View>
             <TextInput
-              placeholder="Search products..."
+              placeholder="Tìm sản phẩm..."
               value={searchTerm}
               onChangeText={setSearchTerm}
               style={styles.search}
             />
             <TouchableOpacity
               onPress={() => {
-                setEditingProduct(null);
+                setEditingProduct({
+                  name: "",
+                  description: "",
+                  price: "",
+                  stock: "",
+                  category: "",
+                  image: "",
+                });
                 setShowProductModal(true);
               }}
               style={styles.addButton}
             >
               <Plus size={20} color="white" />
-              <Text style={{ color: "white", marginLeft: 6 }}>Add Product</Text>
+              <Text style={{ color: "white", marginLeft: 6 }}>
+                Thêm sản phẩm
+              </Text>
             </TouchableOpacity>
 
-            {filteredProducts.map((item) => (
-              <View key={item.id} style={styles.card}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{item.name}</Text>
-                  <Text style={styles.cardCategory}>{item.category}</Text>
-                  <Text style={styles.cardPrice}>${item.price}</Text>
-                  <Text style={styles.cardStock}>Stock: {item.stock}</Text>
+            {products
+              .filter((p) =>
+                (p.name?.toLowerCase() || "").includes(searchTerm.toLowerCase())
+              )
+              .map((p) => (
+                <View key={p._id} style={styles.card}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{p.name}</Text>
+                    <Text style={styles.cardCategory}>
+                      Danh mục: {p.category?.name || "Không rõ"}
+                    </Text>
+                    <Text style={styles.cardPrice}>
+                      ₫{p.price.toLocaleString("vi-VN")}
+                    </Text>
+                    <Text style={styles.cardStock}>Kho: {p.stock}</Text>
+                  </View>
+
+                  <View style={{ flexDirection: "row", gap: 12 }}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        setEditingProduct(p);
+                        setShowProductModal(true);
+                      }}
+                    >
+                      <Text style={{ color: "#3b82f6", fontWeight: "600" }}>
+                        Sửa
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDeleteProduct(p._id)}
+                    >
+                      <Text style={{ color: "#ef4444", fontWeight: "600" }}>
+                        Xóa
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <View style={{ flexDirection: "row", gap: 10 }}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setEditingProduct(item);
-                      setShowProductModal(true);
-                    }}
-                  >
-                    <Pencil size={22} color="#007bff" />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleDeleteProduct(item.id)}
-                  >
-                    <Trash2 size={22} color="red" />
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ))}
+              ))}
           </View>
         )}
 
-        {/* ORDERS TAB */}
+        {/* 🔹 ORDERS */}
         {activeTab === "orders" && (
           <View>
-            <TextInput
-              placeholder="Search orders..."
-              value={searchTerm}
-              onChangeText={setSearchTerm}
-              style={styles.search}
-            />
-            {filteredOrders.map((order) => (
-              <View key={order.id} style={styles.card}>
-                <View>
-                  <Text style={styles.cardTitle}>{order.id}</Text>
-                  <Text style={styles.cardCategory}>{order.customer}</Text>
-                  <Text style={styles.cardPrice}>${order.total}</Text>
-                </View>
-                <View style={{ alignItems: "flex-end" }}>
-                  <Text
-                    style={[
-                      styles.status,
-                      order.status === "Completed"
-                        ? { color: "green" }
-                        : order.status === "Processing"
-                        ? { color: "blue" }
-                        : { color: "orange" },
-                    ]}
-                  >
-                    {order.status}
-                  </Text>
+            {orders.map((o) => (
+              <TouchableOpacity
+                key={o._id}
+                style={[styles.card, { flexDirection: "column" }]}
+                onPress={() =>
+                  router.push(`/(tabs)/order-detail?id=${o._id}`)
+                }
+              >
+                <View
+                  style={{
+                    flexDirection: "row",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>
+                      Mã đơn: {o._id.slice(-6)}
+                    </Text>
+                    <Text style={styles.cardCategory}>
+                      Khách hàng: {o.user?.name || "Ẩn danh"}
+                    </Text>
+                    <Text style={styles.cardPrice}>
+                      ₫{o.totalAmount.toLocaleString("vi-VN")}
+                    </Text>
+                  </View>
+
+                  {/* Nút thay đổi trạng thái */}
                   <TouchableOpacity
-                    onPress={() => handleDeleteOrder(order.id)}
-                    style={{ marginTop: 8 }}
+                    style={styles.statusButton}
+                    onPress={() => handleChangeStatus(o._id, o.status)}
                   >
-                    <Trash2 size={20} color="red" />
+                    <Text
+                      style={[
+                        styles.statusText,
+                        o.status === "completed"
+                          ? { color: "#22c55e" }
+                          : o.status === "processing"
+                          ? { color: "#3b82f6" }
+                          : o.status === "pending"
+                          ? { color: "#f59e0b" }
+                          : { color: "#ef4444" },
+                      ]}
+                    >
+                      {o.status?.toUpperCase() || "UNKNOWN"}
+                    </Text>
                   </TouchableOpacity>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
         )}
 
-        {/* USERS TAB */}
+        {/* 🔹 USERS */}
         {activeTab === "users" && (
           <View>
-            <TextInput
-              placeholder="Search users..."
-              value={searchTerm}
-              onChangeText={setSearchTerm}
-              style={styles.search}
-            />
-            {filteredUsers.map((u) => (
-              <View key={u.id} style={styles.card}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{u.name}</Text>
-                  <Text style={styles.cardCategory}>{u.email}</Text>
-                  <Text style={styles.cardStock}>
-                    {u.orders} orders • ${u.totalSpent.toFixed(2)}
-                  </Text>
-                  <Text style={styles.cardCategory}>Joined: {u.joinDate}</Text>
-                </View>
-                <TouchableOpacity onPress={() => handleDeleteUser(u.id)}>
-                  <Trash2 size={22} color="red" />
-                </TouchableOpacity>
+            {users.map((u) => (
+              <View key={u._id} style={styles.card}>
+                <Text style={styles.cardTitle}>{u.name}</Text>
+                <Text style={styles.cardCategory}>{u.email}</Text>
+                <Text style={styles.cardStock}>Vai trò: {u.role}</Text>
               </View>
             ))}
           </View>
         )}
       </ScrollView>
 
-      {/* ADD / EDIT PRODUCT MODAL */}
-      <Modal visible={showProductModal} transparent animationType="slide">
+      {/* ➕ MODAL THÊM / SỬA SẢN PHẨM */}
+      <Modal
+        visible={showProductModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowProductModal(false)}
+      >
         <View style={styles.modalWrapper}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={() => setShowProductModal(false)}
+            style={{ flex: 0.1 }}
+          />
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>
-              {editingProduct ? "Edit Product" : "Add Product"}
-            </Text>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editingProduct._id ? "Sửa sản phẩm" : "Thêm sản phẩm"}
+              </Text>
+              <TouchableOpacity onPress={() => setShowProductModal(false)}>
+                <Text style={styles.closeBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
 
-            <ScrollView>
+            <ScrollView
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={true}
+              style={styles.scrollContent}
+            >
               <TextInput
-                placeholder="Name"
-                defaultValue={editingProduct?.name}
-                style={styles.input}
+                placeholder="Tên sản phẩm"
+                value={editingProduct.name}
                 onChangeText={(text) =>
-                  setEditingProduct((prev) => ({ ...prev, name: text } as Product))
+                  setEditingProduct({ ...editingProduct, name: text })
                 }
+                style={styles.input}
+                placeholderTextColor="#9ca3af"
               />
               <TextInput
-                placeholder="Category"
-                defaultValue={editingProduct?.category}
-                style={styles.input}
+                placeholder="Mô tả"
+                value={editingProduct.description}
                 onChangeText={(text) =>
-                  setEditingProduct((prev) => ({ ...prev, category: text } as Product))
+                  setEditingProduct({ ...editingProduct, description: text })
                 }
-              />
-              <TextInput
-                placeholder="Price"
-                keyboardType="numeric"
-                defaultValue={editingProduct?.price?.toString()}
-                style={styles.input}
-                onChangeText={(text) =>
-                  setEditingProduct((prev) => ({ ...prev, price: parseFloat(text) } as Product))
-                }
-              />
-              <TextInput
-                placeholder="Stock"
-                keyboardType="numeric"
-                defaultValue={editingProduct?.stock?.toString()}
-                style={styles.input}
-                onChangeText={(text) =>
-                  setEditingProduct((prev) => ({ ...prev, stock: parseInt(text) } as Product))
-                }
-              />
-              <TextInput
-                placeholder="Description"
-                multiline
-                numberOfLines={3}
-                defaultValue={editingProduct?.description}
                 style={[styles.input, { height: 80 }]}
-                onChangeText={(text) =>
-                  setEditingProduct((prev) => ({ ...prev, description: text } as Product))
-                }
+                multiline
+                placeholderTextColor="#9ca3af"
               />
+              <TextInput
+                placeholder="Giá (₫)"
+                keyboardType="decimal-pad"
+                value={editingProduct.price?.toString()}
+                onChangeText={(text) =>
+                  setEditingProduct({ ...editingProduct, price: text })
+                }
+                style={styles.input}
+                placeholderTextColor="#9ca3af"
+              />
+              <TextInput
+                placeholder="Số lượng tồn kho"
+                keyboardType="number-pad"
+                value={editingProduct.stock?.toString()}
+                onChangeText={(text) =>
+                  setEditingProduct({ ...editingProduct, stock: text })
+                }
+                style={styles.input}
+                placeholderTextColor="#9ca3af"
+              />
+
+              {/* DANH MỤC DROPDOWN */}
+              <Text style={styles.label}>Danh mục</Text>
+              <TouchableOpacity
+                onPress={openCategorySelector}
+                style={styles.dropdownBox}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={{
+                    color: editingProduct.category ? "#111827" : "#9ca3af",
+                    fontSize: 16,
+                  }}
+                >
+                  {editingProduct.category
+                    ? categories.find((c) => c._id === editingProduct.category)
+                        ?.name
+                    : "Chọn danh mục sản phẩm"}
+                </Text>
+              </TouchableOpacity>
+
+              {/* UPLOAD ẢNH */}
+              <TouchableOpacity
+                style={styles.uploadBox}
+                onPress={() =>
+                  Alert.alert("📸 Upload", "Tính năng sắp ra mắt!")
+                }
+                activeOpacity={0.7}
+              >
+                <Text style={{ color: "#6b7280", fontSize: 16 }}>
+                  📷 Tải ảnh sản phẩm
+                </Text>
+              </TouchableOpacity>
+
+              <View style={{ height: 20 }} />
             </ScrollView>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
                 onPress={() => setShowProductModal(false)}
                 style={styles.cancelBtn}
+                activeOpacity={0.7}
               >
-                <Text>Cancel</Text>
+                <Text style={styles.cancelBtnText}>Hủy</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                onPress={() => {
-                  if (editingProduct?.id) {
-                    handleEditProduct(editingProduct);
-                  } else {
-                    handleAddProduct({
-                      ...(editingProduct as Product),
-                      id: Date.now().toString(),
-                      name: editingProduct?.name || "New Product",
-                      category: editingProduct?.category || "Others",
-                      price: editingProduct?.price || 0,
-                      stock: editingProduct?.stock || 0,
-                      image: "default.jpg",
-                      description: editingProduct?.description || "",
-                    });
-                  }
-                }}
+                onPress={
+                  editingProduct._id ? handleEditProduct : handleAddProduct
+                }
                 style={styles.saveBtn}
+                activeOpacity={0.7}
               >
-                <Text style={{ color: "white" }}>Save</Text>
+                <Text
+                  style={{ color: "white", fontWeight: "600", fontSize: 16 }}
+                >
+                  {editingProduct._id ? "Cập nhật" : "Lưu"}
+                </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* 🔽 MODAL CHỌN DANH MỤC */}
+      <Modal
+        visible={showCategoryModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCategoryModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.categoryModal}>
+            <View style={styles.categoryHeader}>
+              <Text style={styles.categoryTitle}>Chọn danh mục</Text>
+              <TouchableOpacity onPress={() => setShowCategoryModal(false)}>
+                <Text style={styles.closeBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              style={{ maxHeight: 350 }}
+              keyboardShouldPersistTaps="handled"
+            >
+              {categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat._id}
+                  onPress={() => {
+                    setEditingProduct({
+                      ...editingProduct,
+                      category: cat._id,
+                    });
+                    setShowCategoryModal(false);
+                  }}
+                  style={styles.categoryItem}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.categoryText,
+                      editingProduct.category === cat._id && {
+                        color: "#f97316",
+                        fontWeight: "700",
+                      },
+                    ]}
+                  >
+                    {cat.name}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity
+              onPress={() => setShowCategoryModal(false)}
+              style={styles.closeCategoryBtn}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: "#fff", fontWeight: "600", fontSize: 16 }}>
+                Đóng
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -484,16 +637,33 @@ export default function AdminDashboardScreen() {
   );
 }
 
-// === STYLES ===
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f8f9fa", padding: 16 },
-  header: { fontSize: 20, fontWeight: "bold", textAlign: "center", color: "#ff6600" },
-  tabBar: { flexDirection: "row", justifyContent: "space-around", marginTop: 10 },
-  tab: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 10, backgroundColor: "#fff" },
-  activeTab: { backgroundColor: "#ff6600" },
+  header: {
+    fontSize: 20,
+    fontWeight: "bold",
+    textAlign: "center",
+    color: "#f97316",
+  },
+  tabBar: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    marginTop: 10,
+  },
+  tab: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: "#fff",
+  },
+  activeTab: { backgroundColor: "#f97316" },
   tabText: { color: "#333" },
   activeTabText: { color: "#fff" },
-  statsGrid: { flexDirection: "row", flexWrap: "wrap", justifyContent: "space-between" },
+  statsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
   statCard: {
     width: "48%",
     backgroundColor: "#fff",
@@ -504,11 +674,15 @@ const styles = StyleSheet.create({
   },
   statLabel: { color: "#6b7280", fontSize: 12, marginTop: 4 },
   statValue: { fontWeight: "700", fontSize: 16, color: "#111827" },
-  sectionTitle: { fontWeight: "700", fontSize: 16, marginTop: 16, marginBottom: 8, color: "#111827" },
-  search: { backgroundColor: "#fff", borderRadius: 10, padding: 10, marginVertical: 10 },
+  search: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 10,
+    marginVertical: 10,
+  },
   addButton: {
     flexDirection: "row",
-    backgroundColor: "#ff6600",
+    backgroundColor: "#f97316",
     padding: 10,
     borderRadius: 10,
     justifyContent: "center",
@@ -518,50 +692,172 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     padding: 12,
     borderRadius: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
     marginVertical: 5,
   },
   cardTitle: { fontWeight: "bold", fontSize: 15 },
   cardCategory: { color: "#888" },
-  cardPrice: { color: "#ff6600", fontWeight: "bold" },
+  cardPrice: { color: "#f97316", fontWeight: "bold" },
   cardStock: { color: "#666" },
-  status: { fontWeight: "600", textTransform: "capitalize" },
   modalWrapper: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.4)",
-    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "flex-end",
     alignItems: "center",
   },
   modalContent: {
     backgroundColor: "#fff",
-    borderRadius: 10,
-    width: "90%",
-    padding: 20,
-    maxHeight: "80%",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    width: "100%",
+    padding: 16,
+    maxHeight: "90%",
+    paddingBottom: 24,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 10,
   },
-  modalTitle: { fontWeight: "bold", fontSize: 18, marginBottom: 10, textAlign: "center" },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  modalTitle: {
+    fontWeight: "bold",
+    fontSize: 18,
+    color: "#111827",
+    flex: 1,
+    textAlign: "center",
+  },
+  closeBtn: {
+    fontSize: 24,
+    color: "#6b7280",
+    fontWeight: "600",
+    paddingHorizontal: 8,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
   input: {
-    backgroundColor: "#f1f1f1",
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: "#f9fafb",
+    padding: 12,
+    borderRadius: 10,
+    marginBottom: 12,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+    color: "#111827",
+  },
+  label: { color: "#374151", fontWeight: "500", marginBottom: 6 },
+  dropdownBox: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: "#f9fafb",
     marginBottom: 10,
   },
-  modalButtons: { flexDirection: "row", justifyContent: "space-between", marginTop: 20 },
+  uploadBox: {
+    borderWidth: 1,
+    borderColor: "#d1d5db",
+    borderRadius: 10,
+    padding: 14,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 20,
+    gap: 12,
+  },
   cancelBtn: {
-    backgroundColor: "#eee",
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: "#f3f4f6",
+    padding: 14,
+    borderRadius: 10,
     flex: 1,
     alignItems: "center",
-    marginRight: 5,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
+  },
+  cancelBtnText: {
+    color: "#374151",
+    fontWeight: "600",
+    fontSize: 16,
   },
   saveBtn: {
-    backgroundColor: "#ff6600",
-    padding: 10,
-    borderRadius: 8,
+    backgroundColor: "#f97316",
+    padding: 14,
+    borderRadius: 10,
     flex: 1,
     alignItems: "center",
-    marginLeft: 5,
   },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  categoryModal: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 18,
+    width: "85%",
+    maxHeight: "70%",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 12,
+  },
+  categoryHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 14,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  categoryTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#111827",
+    flex: 1,
+  },
+  categoryItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f3f4f6",
+  },
+  categoryText: { fontSize: 16, color: "#374151", fontWeight: "500" },
+  closeCategoryBtn: {
+    backgroundColor: "#f97316",
+    borderRadius: 10,
+    paddingVertical: 12,
+    marginTop: 14,
+    alignItems: "center",
+  },
+  statusButton: {
+  borderWidth: 1,
+  borderColor: "#e5e7eb",
+  borderRadius: 8,
+  paddingVertical: 6,
+  paddingHorizontal: 10,
+  alignSelf: "flex-start",
+  backgroundColor: "#f9fafb",
+},
+statusText: {
+  fontWeight: "600",
+  fontSize: 13,
+  textTransform: "uppercase",
+},
+
 });

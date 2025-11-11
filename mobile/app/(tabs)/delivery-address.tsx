@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,87 +7,131 @@ import {
   TextInput,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  getAddresses,
+  addAddress,
+  deleteAddress,
+  setDefaultAddress,
+} from "../services/addressService";
 
 interface Address {
-  id: number;
-  label: string;
-  type: "home" | "work" | "other";
-  address: string;
+  _id: string;
+  fullName: string;
+  phone: string;
+  addressLine: string;
+  city: string;
+  district: string;
+  ward: string;
   isDefault: boolean;
 }
 
 export default function DeliveryAddressScreen() {
-  const [addresses, setAddresses] = useState<Address[]>([
-    {
-      id: 1,
-      label: "Home",
-      type: "home",
-      address: "123 Main Street, Apartment 4B, New York, NY 10001",
-      isDefault: true,
-    },
-    {
-      id: 2,
-      label: "Work",
-      type: "work",
-      address: "456 Business Ave, Floor 12, Suite 1200, New York, NY 10002",
-      isDefault: false,
-    },
-  ]);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // Form state
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newLabel, setNewLabel] = useState("");
-  const [newType, setNewType] = useState<"home" | "work" | "other">("home");
-  const [newAddress, setNewAddress] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [addressLine, setAddressLine] = useState("");
+  const [city, setCity] = useState("");
+  const [district, setDistrict] = useState("");
+  const [ward, setWard] = useState("");
 
-  const handleSetDefault = (id: number) => {
-    setAddresses((prev) =>
-      prev.map((a) => ({ ...a, isDefault: a.id === id }))
-    );
-    Alert.alert("✅ Success", "Default address updated");
-  };
+  // 🟢 Load danh sách địa chỉ từ backend
+  useEffect(() => {
+    const loadAddresses = async () => {
+      try {
+        const data = await getAddresses();
+        setAddresses(data);
+      } catch (err: any) {
+        console.log("🧨 Lỗi tải địa chỉ:", err.message);
+        Alert.alert("Lỗi", "Không thể tải danh sách địa chỉ!");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadAddresses();
+  }, []);
 
-  const handleDelete = (id: number) => {
-    setAddresses((prev) => prev.filter((a) => a.id !== id));
-    Alert.alert("🗑️ Deleted", "Address removed successfully");
-  };
-
-  const handleAddAddress = () => {
-    if (!newLabel.trim() || !newAddress.trim()) {
-      Alert.alert("⚠️ Missing info", "Please fill in all fields");
+  // 🟡 Thêm địa chỉ mới
+  const handleAddAddress = async () => {
+    if (!fullName || !phone || !addressLine || !city || !district || !ward) {
+      Alert.alert("Thiếu thông tin", "Vui lòng điền đầy đủ thông tin!");
       return;
     }
-
-    const newAddr: Address = {
-      id: Date.now(),
-      label: newLabel,
-      type: newType,
-      address: newAddress,
-      isDefault: addresses.length === 0,
-    };
-
-    setAddresses((prev) => [...prev, newAddr]);
-    setNewLabel("");
-    setNewAddress("");
-    setNewType("home");
-    setShowAddForm(false);
-
-    Alert.alert("✅ Success", "Address added successfully");
-  };
-
-  const getIcon = (type: string) => {
-    switch (type) {
-      case "home":
-        return "home-outline";
-      case "work":
-        return "briefcase-outline";
-      default:
-        return "map-outline";
+    try {
+      await addAddress({
+        fullName,
+        phone,
+        addressLine,
+        city,
+        district,
+        ward,
+        isDefault: addresses.length === 0,
+      });
+      Alert.alert("✅ Thành công", "Đã thêm địa chỉ mới!");
+      setShowAddForm(false);
+      setFullName("");
+      setPhone("");
+      setAddressLine("");
+      setCity("");
+      setDistrict("");
+      setWard("");
+      const refreshed = await getAddresses();
+      setAddresses(refreshed);
+    } catch (err: any) {
+      Alert.alert("Lỗi", err.message || "Không thể thêm địa chỉ!");
     }
   };
+
+  // 🔴 Xóa địa chỉ
+  const handleDelete = async (id: string) => {
+    Alert.alert("Xác nhận", "Bạn có chắc muốn xóa địa chỉ này?", [
+      { text: "Hủy", style: "cancel" },
+      {
+        text: "Xóa",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            await deleteAddress(id);
+            const refreshed = await getAddresses();
+            setAddresses(refreshed);
+          } catch {
+            Alert.alert("Lỗi", "Không thể xóa địa chỉ!");
+          }
+        },
+      },
+    ]);
+  };
+
+  // 🟢 Set địa chỉ mặc định
+  const handleSetDefault = async (id: string) => {
+    try {
+      await setDefaultAddress(id);
+      Alert.alert("✅ Thành công", "Đã đặt làm địa chỉ mặc định!");
+      const refreshed = await getAddresses();
+      setAddresses(refreshed);
+
+      // 🔙 Quay về checkout nếu chọn default trong lúc thanh toán
+      router.back();
+    } catch {
+      Alert.alert("Lỗi", "Không thể đặt mặc định!");
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#f97316" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -99,125 +143,121 @@ export default function DeliveryAddressScreen() {
         >
           <Ionicons name="arrow-back" size={22} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Delivery Address</Text>
+        <Text style={styles.headerTitle}>Địa chỉ giao hàng</Text>
       </View>
 
       <ScrollView
+        keyboardShouldPersistTaps="handled"
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Add New Button */}
+        {/* Nút thêm mới */}
         {!showAddForm && (
           <TouchableOpacity
             onPress={() => setShowAddForm(true)}
             style={styles.addButton}
           >
             <Ionicons name="add-outline" size={20} color="white" />
-            <Text style={styles.addButtonText}>Add New Address</Text>
+            <Text style={styles.addButtonText}>Thêm địa chỉ mới</Text>
           </TouchableOpacity>
         )}
 
-        {/* Add Form */}
+        {/* Form thêm địa chỉ */}
         {showAddForm && (
-          <View style={styles.formBox}>
-            <Text style={styles.formTitle}>New Address</Text>
+          <View
+            key={showAddForm ? "form-visible" : "form-hidden"}
+            style={styles.formBox}
+          >
+            <Text style={styles.formTitle}>Thêm địa chỉ mới</Text>
 
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Label</Text>
-              <TextInput
-                value={newLabel}
-                onChangeText={setNewLabel}
-                placeholder="e.g. Home, Office"
-                style={styles.input}
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
-
-            <Text style={styles.label}>Type</Text>
-            <View style={styles.typeRow}>
-              {(["home", "work", "other"] as const).map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  onPress={() => setNewType(type)}
-                  style={[
-                    styles.typeButton,
-                    newType === type && styles.typeButtonActive,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.typeText,
-                      newType === type && styles.typeTextActive,
-                    ]}
-                  >
-                    {type.charAt(0).toUpperCase() + type.slice(1)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={styles.label}>Full Address</Text>
-              <TextInput
-                value={newAddress}
-                onChangeText={setNewAddress}
-                placeholder="Street, city, state, zip code"
-                multiline
-                style={[styles.input, { height: 80, textAlignVertical: "top" }]}
-                placeholderTextColor="#9ca3af"
-              />
-            </View>
+            <TextInput
+              value={fullName}
+              onChangeText={setFullName}
+              placeholder="Họ và tên"
+              style={styles.input}
+            />
+            <TextInput
+              value={phone}
+              onChangeText={setPhone}
+              placeholder="Số điện thoại"
+              keyboardType="phone-pad"
+              style={styles.input}
+            />
+            <TextInput
+              value={addressLine}
+              onChangeText={setAddressLine}
+              placeholder="Địa chỉ (Số nhà, tên đường)"
+              style={styles.input}
+            />
+            <TextInput
+              value={ward}
+              onChangeText={setWard}
+              placeholder="Phường/Xã"
+              style={styles.input}
+            />
+            <TextInput
+              value={district}
+              onChangeText={setDistrict}
+              placeholder="Quận/Huyện"
+              style={styles.input}
+            />
+            <TextInput
+              value={city}
+              onChangeText={setCity}
+              placeholder="Tỉnh/Thành phố"
+              style={styles.input}
+            />
 
             <View style={styles.row}>
               <TouchableOpacity
                 onPress={handleAddAddress}
                 style={[styles.flexBtn, { backgroundColor: "#f97316" }]}
               >
-                <Text style={[styles.btnText, { color: "white" }]}>Save</Text>
+                <Text style={[styles.btnText, { color: "white" }]}>Lưu</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setShowAddForm(false)}
                 style={[styles.flexBtn, { backgroundColor: "#f3f4f6" }]}
               >
-                <Text style={styles.btnText}>Cancel</Text>
+                <Text style={styles.btnText}>Hủy</Text>
               </TouchableOpacity>
             </View>
           </View>
         )}
 
-        {/* Address List */}
+        {/* Danh sách địa chỉ */}
         {addresses.map((addr) => (
           <View
-            key={addr.id}
-            style={[
-              styles.card,
-              addr.isDefault && { borderColor: "#f97316" },
-            ]}
+            key={addr._id}
+            style={[styles.card, addr.isDefault && { borderColor: "#f97316" }]}
           >
             <View style={styles.cardHeader}>
               <View style={styles.cardLeft}>
-                <View style={styles.iconCircle}>
-                  <Ionicons
-                    name={getIcon(addr.type) as any}
-                    size={20}
-                    color="#f97316"
-                  />
-                </View>
-                <View>
+                <Ionicons
+                  name="location-outline"
+                  size={20}
+                  color="#f97316"
+                  style={{ marginTop: 4 }}
+                />
+                <View style={{ flex: 1 }}>
                   <View style={styles.cardTitleRow}>
-                    <Text style={styles.cardTitle}>{addr.label}</Text>
+                    <Text style={styles.cardTitle}>{addr.fullName}</Text>
                     {addr.isDefault && (
                       <View style={styles.defaultBadge}>
-                        <Text style={styles.defaultText}>Default</Text>
+                        <Text style={styles.defaultText}>Mặc định</Text>
                       </View>
                     )}
                   </View>
-                  <Text style={styles.cardAddress}>{addr.address}</Text>
+                  <Text style={styles.cardAddress}>
+                    {addr.addressLine}, {addr.ward}, {addr.district},{" "}
+                    {addr.city}
+                  </Text>
+                  <Text style={styles.cardPhone}>{addr.phone}</Text>
                 </View>
               </View>
 
               <TouchableOpacity
-                onPress={() => handleDelete(addr.id)}
+                onPress={() => handleDelete(addr._id)}
                 style={styles.deleteBtn}
               >
                 <Ionicons name="trash-outline" size={18} color="#ef4444" />
@@ -226,22 +266,22 @@ export default function DeliveryAddressScreen() {
 
             {!addr.isDefault && (
               <TouchableOpacity
-                onPress={() => handleSetDefault(addr.id)}
+                onPress={() => handleSetDefault(addr._id)}
                 style={styles.setDefaultBtn}
               >
-                <Text style={styles.setDefaultText}>Set as Default</Text>
+                <Text style={styles.setDefaultText}>Đặt làm mặc định</Text>
               </TouchableOpacity>
             )}
           </View>
         ))}
 
-        {/* Empty State */}
+        {/* Nếu chưa có địa chỉ */}
         {addresses.length === 0 && !showAddForm && (
           <View style={styles.emptyBox}>
             <Ionicons name="location-outline" size={48} color="#d1d5db" />
-            <Text style={styles.emptyText}>No addresses added yet</Text>
+            <Text style={styles.emptyText}>Chưa có địa chỉ nào</Text>
             <Text style={styles.emptySubText}>
-              Add your first delivery address
+              Hãy thêm địa chỉ giao hàng mới
             </Text>
           </View>
         )}
@@ -252,6 +292,7 @@ export default function DeliveryAddressScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#f9fafb" },
+  center: { flex: 1, justifyContent: "center", alignItems: "center" },
   header: {
     backgroundColor: "#f97316",
     flexDirection: "row",
@@ -259,13 +300,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
   },
-  backButton: {
-    marginRight: 8,
-    padding: 6,
-    borderRadius: 20,
-  },
+  backButton: { marginRight: 8, padding: 6, borderRadius: 20 },
   headerTitle: { color: "white", fontSize: 18, fontWeight: "600" },
-
   scrollContent: { padding: 20, paddingBottom: 60 },
 
   addButton: {
@@ -276,9 +312,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 14,
     marginBottom: 16,
-    shadowColor: "#f97316",
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
   },
   addButtonText: { color: "white", fontWeight: "600", marginLeft: 6 },
 
@@ -290,9 +323,7 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 20,
   },
-  formTitle: { color: "#111827", fontWeight: "600", fontSize: 16, marginBottom: 12 },
-  formGroup: { marginBottom: 12 },
-  label: { color: "#374151", fontSize: 13, marginBottom: 6 },
+  formTitle: { fontWeight: "600", fontSize: 16, marginBottom: 12 },
   input: {
     backgroundColor: "#f3f4f6",
     borderRadius: 10,
@@ -302,21 +333,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     color: "#111827",
     fontSize: 14,
+    marginBottom: 10,
   },
-
-  typeRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12 },
-  typeButton: {
-    flex: 1,
-    backgroundColor: "#f3f4f6",
-    borderRadius: 8,
-    paddingVertical: 8,
-    marginHorizontal: 2,
-    alignItems: "center",
-  },
-  typeButtonActive: { backgroundColor: "#f97316" },
-  typeText: { color: "#6b7280", fontSize: 13, textTransform: "capitalize" },
-  typeTextActive: { color: "white", fontWeight: "600" },
-
   row: { flexDirection: "row", gap: 8 },
   flexBtn: {
     flex: 1,
@@ -341,15 +359,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   cardLeft: { flexDirection: "row", gap: 8, flex: 1 },
-  iconCircle: {
-    backgroundColor: "#fff7ed",
-    borderRadius: 20,
-    padding: 8,
-    marginTop: 2,
-  },
   cardTitleRow: { flexDirection: "row", alignItems: "center", gap: 6 },
   cardTitle: { color: "#111827", fontWeight: "600", fontSize: 15 },
   cardAddress: { color: "#6b7280", fontSize: 13, marginTop: 2 },
+  cardPhone: { color: "#9ca3af", fontSize: 12, marginTop: 2 },
   defaultBadge: {
     backgroundColor: "#ffedd5",
     borderRadius: 8,
