@@ -1,6 +1,7 @@
 import express from "express";
-import { createCategory, getCategories } from "../controllers/categoryController.js";
 import { protect, sellerOnly } from "../middleware/authMiddleware.js";
+import { getCategories } from "../controllers/categoryController.js";
+import { createCategory } from "../controllers/categoryController.js";
 
 const router = express.Router();
 
