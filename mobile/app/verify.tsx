@@ -10,6 +10,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, router } from "expo-router";
 import { resendOtp, verifyOtp } from "./services/authService";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function VerifyScreen() {
   const { email } = useLocalSearchParams();
@@ -75,7 +76,7 @@ export default function VerifyScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -139,7 +140,7 @@ export default function VerifyScreen() {
           )}
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 

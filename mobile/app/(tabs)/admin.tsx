@@ -29,6 +29,7 @@ import {
 } from "../services/productService";
 import { getAllOrders, getAllUsers, updateOrderStatus } from "../services/sellerService";
 import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function AdminDashboardScreen() {
   const [activeTab, setActiveTab] = useState<
@@ -243,7 +244,7 @@ export default function AdminDashboardScreen() {
 
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.header}>📊 Bảng điều khiển Admin</Text>
 
       {/* TAB MENU */}
@@ -633,7 +634,7 @@ export default function AdminDashboardScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

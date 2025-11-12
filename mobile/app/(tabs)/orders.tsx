@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { getUserOrders } from "../services/orderService";
 import { router } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function OrdersScreen() {
   const [activeTab, setActiveTab] = useState<
@@ -66,7 +67,7 @@ export default function OrdersScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Đơn hàng của tôi</Text>
@@ -181,7 +182,7 @@ export default function OrdersScreen() {
           })
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

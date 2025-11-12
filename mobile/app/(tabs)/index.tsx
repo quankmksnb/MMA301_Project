@@ -14,6 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
 import { addToCart, getCategories, getProducts } from "../services/productService";
 import { useCart } from "../context/CartContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
   const [userName, setUserName] = useState("User");
@@ -67,7 +68,7 @@ export default function HomeScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <ScrollView showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
@@ -158,7 +159,7 @@ export default function HomeScreen() {
             </TouchableOpacity>
           ))}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
